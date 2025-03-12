@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/theblitlabs/keystore"
 	"github.com/theblitlabs/parity-client/internal/config"
-	"github.com/theblitlabs/parity-client/pkg/keystore"
 )
 
 // Define custom errors

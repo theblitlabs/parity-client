@@ -8,6 +8,8 @@ replace github.com/theblitlabs/gologger => ./pkg/gologger
 
 replace github.com/theblitlabs/deviceid => ./pkg/deviceid
 
+replace github.com/theblitlabs/keystore => ./pkg/keystore
+
 require (
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -16,6 +18,7 @@ require (
 	github.com/spf13/viper v1.18.2
 	github.com/theblitlabs/deviceid v0.0.0-00010101000000-000000000000
 	github.com/theblitlabs/gologger v0.0.0-00010101000000-000000000000
+	github.com/theblitlabs/keystore v0.0.0-00010101000000-000000000000
 )
 
 require (
