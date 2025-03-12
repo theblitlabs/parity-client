@@ -18,7 +18,7 @@ var rootCmd = &cobra.Command{
 	Short: "Parity Protocol CLI",
 	Long:  `A decentralized computing network powered by blockchain and secure enclaves`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.RunChain()
+		cli.RunChain(3000)
 	},
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		switch logMode {

@@ -7,8 +7,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/theblitlabs/parity-client/internal/config"
 	"github.com/theblitlabs/parity-client/pkg/device"
 	"github.com/theblitlabs/parity-client/pkg/logger"
@@ -24,7 +27,31 @@ func isPortAvailable(port int) error {
 	return nil
 }
 
-func RunChain() {
+func getCreatorAddress() (string, error) {
+	keystoreDir := filepath.Join(os.Getenv("HOME"), ".parity")
+	keystorePath := filepath.Join(keystoreDir, "keystore.json")
+
+	data, err := os.ReadFile(keystorePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read keystore: %w", err)
+	}
+
+	var keystore KeyStore
+	if err := json.Unmarshal(data, &keystore); err != nil {
+		return "", fmt.Errorf("failed to parse keystore: %w", err)
+	}
+
+	privateKey := keystore.PrivateKey
+	ecdsaKey, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("invalid private key in keystore: %w", err)
+	}
+
+	address := crypto.PubkeyToAddress(ecdsaKey.PublicKey)
+	return address.Hex(), nil
+}
+
+func RunChain(port int) {
 	log := logger.Get()
 
 	// Load config
@@ -37,6 +64,12 @@ func RunChain() {
 	deviceID, err := device.VerifyDeviceID()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to verify device ID")
+	}
+
+	// Get creator address from keystore
+	creatorAddress, err := getCreatorAddress()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get creator address. Please authenticate first using 'auth' command")
 	}
 
 	// Proxy request to the server
@@ -60,6 +93,7 @@ func RunChain() {
 			Str("target_url", targetURL).
 			Str("server_url", cfg.Runner.ServerURL).
 			Str("device_id", deviceID).
+			Str("creator_address", creatorAddress).
 			Msg("Forwarding request")
 
 		var proxyReq *http.Request
@@ -82,8 +116,9 @@ func RunChain() {
 				return
 			}
 
-			// Add device ID to request body
+			// Add device ID and creator address to request body
 			requestData["creator_device_id"] = deviceID
+			requestData["creator_address"] = creatorAddress
 
 			// Marshal modified body
 			modifiedBody, err := json.Marshal(requestData)
@@ -114,8 +149,9 @@ func RunChain() {
 			}
 		}
 
-		// Always add device ID header
+		// Always add device ID and creator address headers
 		proxyReq.Header.Set("X-Device-ID", deviceID)
+		proxyReq.Header.Set("X-Creator-Address", creatorAddress)
 
 		// Forward the request
 		client := &http.Client{}
@@ -144,16 +180,18 @@ func RunChain() {
 	})
 
 	// Start local proxy server
-	localAddr := fmt.Sprintf("%s:%s", cfg.Server.Host, "3000")
+	localAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, port)
 
-	// Check if port 3000 is available
-	if err := isPortAvailable(3000); err != nil {
-		log.Fatal().Err(err).Int("port", 3000).Msg("Chain proxy port is not available")
+	// Check if specified port is available
+	if err := isPortAvailable(port); err != nil {
+		log.Fatal().Err(err).Int("port", port).Msg("Chain proxy port is not available")
 	}
 
 	log.Info().
 		Str("address", localAddr).
 		Str("device_id", deviceID).
+		Str("creator_address", creatorAddress).
+		Int("port", port).
 		Msg("Starting chain proxy server")
 
 	if err := http.ListenAndServe(localAddr, nil); err != nil {
