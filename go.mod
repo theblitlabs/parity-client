@@ -6,12 +6,15 @@ toolchain go1.24.0
 
 replace github.com/theblitlabs/gologger => ./pkg/gologger
 
+replace github.com/theblitlabs/deviceid => ./pkg/deviceid
+
 require (
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/rs/zerolog v1.32.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.18.2
+	github.com/theblitlabs/deviceid v0.0.0-00010101000000-000000000000
 	github.com/theblitlabs/gologger v0.0.0-00010101000000-000000000000
 )
 

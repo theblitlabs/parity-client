@@ -8,8 +8,8 @@ import (
 
 	"github.com/theblitlabs/parity-client/internal/config"
 
+	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/gologger"
-	"github.com/theblitlabs/parity-client/pkg/device"
 	"github.com/theblitlabs/parity-client/pkg/keystore"
 	"github.com/theblitlabs/parity-client/pkg/stakewallet"
 	"github.com/theblitlabs/parity-client/pkg/wallet"
@@ -56,7 +56,8 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to create stake wallet")
 	}
 
-	deviceID, err := device.VerifyDeviceID()
+	deviceIDManager := deviceid.NewManager(deviceid.Config{})
+	deviceID, err := deviceIDManager.VerifyDeviceID()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get device ID")
 	}
