@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/config"
 	"github.com/theblitlabs/parity-client/pkg/device"
-	"github.com/theblitlabs/parity-client/pkg/logger"
 )
 
 // isPortAvailable verifies if a port is available for use
@@ -52,7 +52,7 @@ func getCreatorAddress() (string, error) {
 }
 
 func RunChain(port int) {
-	log := logger.Get()
+	log := gologger.Get().With().Str("component", "chain").Logger()
 
 	// Load config
 	cfg, err := config.LoadConfig("config/config.yaml")

@@ -7,8 +7,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/cmd/cli"
-	"github.com/theblitlabs/parity-client/pkg/logger"
 )
 
 var logMode string
@@ -23,9 +23,9 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		switch logMode {
 		case "debug", "pretty", "info", "prod", "test":
-			logger.InitWithMode(logger.LogMode(logMode))
+			gologger.InitWithMode(gologger.LogMode(logMode))
 		default:
-			logger.InitWithMode(logger.LogModePretty)
+			gologger.InitWithMode(gologger.LogModePretty)
 		}
 	},
 }

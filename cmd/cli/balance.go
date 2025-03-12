@@ -8,15 +8,15 @@ import (
 
 	"github.com/theblitlabs/parity-client/internal/config"
 
+	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/pkg/device"
 	"github.com/theblitlabs/parity-client/pkg/keystore"
-	"github.com/theblitlabs/parity-client/pkg/logger"
 	"github.com/theblitlabs/parity-client/pkg/stakewallet"
 	"github.com/theblitlabs/parity-client/pkg/wallet"
 )
 
 func RunBalance() {
-	log := logger.Get().With().Str("component", "balance").Logger()
+	log := gologger.Get().With().Str("component", "balance").Logger()
 
 	cfg, err := config.LoadConfig("config/config.yaml")
 	if err != nil {

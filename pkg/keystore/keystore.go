@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/theblitlabs/parity-client/pkg/logger"
+	"github.com/theblitlabs/gologger"
 )
 
 type Keystore struct {
@@ -50,7 +50,7 @@ func SaveToken(token string) error {
 		CreatedAt: time.Now().Unix(),
 	}
 
-	log := logger.Get()
+	log := gologger.Get()
 	log.Info().
 		Str("path", keystorePath).
 		Str("token_preview", token[:min(len(token), 10)]+"...").
@@ -83,7 +83,7 @@ func LoadToken() (string, error) {
 		return "", err
 	}
 
-	log := logger.Get()
+	log := gologger.Get()
 	log.Info().
 		Str("path", keystorePath).
 		Msg("Loading token from keystore")
