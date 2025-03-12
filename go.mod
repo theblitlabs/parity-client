@@ -4,7 +4,7 @@ go 1.23.0
 
 toolchain go1.24.0
 
-replace github.com/theblitlabs/gologger => ../gologger
+replace github.com/theblitlabs/gologger => ./pkg/gologger
 
 require (
 	github.com/ethereum/go-ethereum v1.14.12
