@@ -17,6 +17,10 @@ import (
 	"github.com/theblitlabs/parity-client/internal/config"
 )
 
+type KeyStore struct {
+	PrivateKey string `json:"private_key"`
+}
+
 // isPortAvailable verifies if a port is available for use
 func isPortAvailable(port int) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
