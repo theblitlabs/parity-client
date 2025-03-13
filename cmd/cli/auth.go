@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	paritywallet "github.com/theblitlabs/go-parity-wallet"
 	"github.com/theblitlabs/parity-client/internal/config"
-	"github.com/theblitlabs/parity-client/pkg/wallet"
 )
 
 type KeyStore struct {
@@ -56,7 +55,8 @@ func ExecuteAuth(privateKey string, configPath string) error {
 
 	privateKey = strings.TrimPrefix(privateKey, "0x")
 
-	if _, err := crypto.HexToECDSA(privateKey); err != nil {
+	privateKeyECDSA, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
 		return fmt.Errorf("invalid private key format: %w", err)
 	}
 
@@ -82,10 +82,11 @@ func ExecuteAuth(privateKey string, configPath string) error {
 		return fmt.Errorf("failed to save keystore: %w", err)
 	}
 
-	client, err := wallet.NewClientWithKey(
+	client, err := paritywallet.NewClientWithKey(
 		cfg.Ethereum.RPC,
-		big.NewInt(cfg.Ethereum.ChainID),
+		cfg.Ethereum.ChainID,
 		privateKey,
+		crypto.PubkeyToAddress(privateKeyECDSA.PublicKey),
 	)
 	if err != nil {
 		return fmt.Errorf("invalid private key: %w", err)
