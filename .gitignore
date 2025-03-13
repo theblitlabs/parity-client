@@ -7,7 +7,7 @@
 bin/
 
 # Project specific
-parity-client/
+parity-client
 
 # Test binary, built with `go test -c`
 *.test
