@@ -4,8 +4,11 @@
 *.dll
 *.so
 *.dylib
-parity
+parity-client
 bin/
+
+# Project specific
+parity-client/
 
 # Test binary, built with `go test -c`
 *.test
@@ -79,4 +82,4 @@ node_modules/
 config/config.yaml
 
 # Cursor rules
-.cursor/
+.cursor/ 
