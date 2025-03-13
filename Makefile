@@ -63,8 +63,8 @@ clean: ## Clean build files
 
 deps: ## Download dependencies
 	git submodule update --init --recursive
-	$(GOMOD) download
 	$(GOMOD) tidy
+	$(GOMOD) download
 
 fmt: ## Format code
 	$(GOFMT) ./...
