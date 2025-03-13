@@ -12,10 +12,14 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/theblitlabs/deviceid"
+	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/config"
-	"github.com/theblitlabs/parity-client/pkg/device"
-	"github.com/theblitlabs/parity-client/pkg/logger"
 )
+
+type KeyStore struct {
+	PrivateKey string `json:"private_key"`
+}
 
 // isPortAvailable verifies if a port is available for use
 func isPortAvailable(port int) error {
@@ -52,7 +56,7 @@ func getCreatorAddress() (string, error) {
 }
 
 func RunChain(port int) {
-	log := logger.Get()
+	log := gologger.Get().With().Str("component", "chain").Logger()
 
 	// Load config
 	cfg, err := config.LoadConfig("config/config.yaml")
@@ -61,7 +65,8 @@ func RunChain(port int) {
 	}
 
 	// Get or generate device ID
-	deviceID, err := device.VerifyDeviceID()
+	deviceIDManager := deviceid.NewManager(deviceid.Config{})
+	deviceID, err := deviceIDManager.VerifyDeviceID()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to verify device ID")
 	}
