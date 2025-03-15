@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -21,7 +23,34 @@ type KeyStore struct {
 	PrivateKey string `json:"private_key"`
 }
 
-// isPortAvailable verifies if a port is available for use
+type DockerConfig struct {
+	Image   string   `json:"image"`
+	Workdir string   `json:"workdir"`
+	Command []string `json:"command,omitempty"`
+}
+
+type TaskConfig struct {
+	Command []string     `json:"command"`
+	Config  DockerConfig `json:"config,omitempty"`
+}
+
+type TaskEnvironment struct {
+	Type   string       `json:"type"`
+	Config DockerConfig `json:"config"`
+}
+
+type DockerTask struct {
+	Image   string   `json:"image"`
+	Command []string `json:"command,omitempty"`
+}
+
+type TaskRequest struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Image       string   `json:"image"`
+	Command     []string `json:"command"`
+}
+
 func isPortAvailable(port int) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -29,6 +58,56 @@ func isPortAvailable(port int) error {
 	}
 	ln.Close()
 	return nil
+}
+
+func saveDockerImage(imageName string) (string, error) {
+	log := gologger.Get().With().Str("component", "docker").Logger()
+
+	log.Info().
+		Str("image", imageName).
+		Msg("Starting Docker image save operation")
+
+	tmpDir, err := os.MkdirTemp("", "docker-images")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	log.Debug().
+		Str("tmpDir", tmpDir).
+		Msg("Created temporary directory for Docker image")
+
+	tarFileName := filepath.Join(tmpDir, strings.ReplaceAll(imageName, "/", "_")+".tar")
+	log.Debug().
+		Str("tarFile", tarFileName).
+		Msg("Generated tar filename")
+
+	log.Info().
+		Str("image", imageName).
+		Str("tarFile", tarFileName).
+		Msg("Saving Docker image to tar file")
+
+	cmd := exec.Command("docker", "save", "-o", tarFileName, imageName)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		log.Error().
+			Err(err).
+			Str("image", imageName).
+			Str("output", string(output)).
+			Msg("Failed to save Docker image")
+		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
+			log.Error().Err(rmErr).Str("tmpDir", tmpDir).Msg("Failed to clean up temporary directory")
+		}
+		return "", fmt.Errorf("failed to save docker image: %w", err)
+	}
+
+	fileInfo, err := os.Stat(tarFileName)
+	if err == nil {
+		log.Info().
+			Str("image", imageName).
+			Str("tarFile", tarFileName).
+			Int64("sizeBytes", fileInfo.Size()).
+			Msg("Successfully saved Docker image to tar file")
+	}
+
+	return tarFileName, nil
 }
 
 func getCreatorAddress() (string, error) {
@@ -85,27 +164,15 @@ func RunChain(port int) {
 			Str("content_type", r.Header.Get("Content-Type")).
 			Msg("Received request")
 
-		// Get the path and ensure it doesn't have a leading slash
 		path := strings.TrimPrefix(r.URL.Path, "/")
 		path = strings.TrimPrefix(path, "api/")
 
-		// Create new request to forward to the server
 		targetURL := fmt.Sprintf("%s/%s", strings.TrimSuffix(cfg.Runner.ServerURL, "/"), path)
-		log.Info().
-			Str("method", r.Method).
-			Str("original_path", r.URL.Path).
-			Str("modified_path", path).
-			Str("target_url", targetURL).
-			Str("server_url", cfg.Runner.ServerURL).
-			Str("device_id", deviceID).
-			Str("creator_address", creatorAddress).
-			Msg("Forwarding request")
 
 		var proxyReq *http.Request
 		var err error
 
-		// Only modify body for POST/PUT requests with JSON content
-		if (r.Method == "POST" || r.Method == "PUT") && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		if r.Method == "POST" && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, "Error reading request body", http.StatusInternalServerError)
@@ -113,33 +180,126 @@ func RunChain(port int) {
 			}
 			r.Body.Close()
 
-			// Try to decode and modify JSON body
-			var requestData map[string]interface{}
-			if err := json.NewDecoder(bytes.NewBuffer(body)).Decode(&requestData); err != nil {
+			var taskRequest TaskRequest
+			if err := json.Unmarshal(body, &taskRequest); err != nil {
 				log.Error().Err(err).Msg("Failed to decode request body")
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
 
-			// Add device ID and creator address to request body
-			requestData["creator_device_id"] = deviceID
-			requestData["creator_address"] = creatorAddress
+			// Handle Docker image if present
+			if taskRequest.Image != "" {
+				log := log.With().
+					Str("image", taskRequest.Image).
+					Str("path", path).
+					Logger()
 
-			// Marshal modified body
-			modifiedBody, err := json.Marshal(requestData)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to marshal modified request body")
-				http.Error(w, "Error processing request", http.StatusInternalServerError)
-				return
-			}
+				log.Info().Msg("Processing Docker image request")
 
-			proxyReq, err = http.NewRequest(r.Method, targetURL, bytes.NewBuffer(modifiedBody))
-			if err != nil {
-				http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
-				return
+				imageName := taskRequest.Image
+				tarFile, err := saveDockerImage(imageName)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to save Docker image")
+					http.Error(w, fmt.Sprintf("Failed to process Docker image: %v", err), http.StatusInternalServerError)
+					return
+				}
+				defer func() {
+					log.Debug().
+						Str("tarFile", tarFile).
+						Msg("Cleaning up temporary tar file")
+					if err := os.Remove(tarFile); err != nil {
+						log.Error().Err(err).Str("tarFile", tarFile).Msg("Failed to clean up temporary tar file")
+					}
+				}()
+
+				// Read the tar file
+				imageData, err := os.ReadFile(tarFile)
+				if err != nil {
+					log.Error().
+						Err(err).
+						Str("tarFile", tarFile).
+						Msg("Failed to read Docker image tar")
+					http.Error(w, "Failed to read Docker image data", http.StatusInternalServerError)
+					return
+				}
+
+				log.Debug().
+					Str("tarFile", tarFile).
+					Int("dataSizeBytes", len(imageData)).
+					Msg("Read Docker image tar file")
+
+				// Create multipart request
+				body := &bytes.Buffer{}
+				writer := NewMultipartWriter(body)
+
+				// Add the JSON part
+				jsonPart, err := writer.CreateFormField("task")
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to create form field")
+					http.Error(w, "Failed to create form field", http.StatusInternalServerError)
+					return
+				}
+				if err := json.NewEncoder(jsonPart).Encode(taskRequest); err != nil {
+					log.Error().Err(err).Msg("Failed to encode task request")
+					http.Error(w, "Failed to encode task request", http.StatusInternalServerError)
+					return
+				}
+
+				// Add the image tar part
+				imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to create form file")
+					http.Error(w, "Failed to create form file", http.StatusInternalServerError)
+					return
+				}
+				if _, err := imagePart.Write(imageData); err != nil {
+					log.Error().Err(err).Msg("Failed to write image data")
+					http.Error(w, "Failed to write image data", http.StatusInternalServerError)
+					return
+				}
+
+				writer.Close()
+
+				log.Info().
+					Int("requestSizeBytes", body.Len()).
+					Msg("Created multipart request with Docker image")
+
+				// Create new multipart request
+				proxyReq, err = http.NewRequest(r.Method, targetURL, body)
+				if err != nil {
+					log.Error().Err(err).Msg("Error creating proxy request")
+					http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
+					return
+				}
+				proxyReq.Header.Set("Content-Type", writer.FormDataContentType())
+
+				log.Info().Msg("Docker image request ready for forwarding")
+			} else {
+				// Add device ID and creator address to request body
+				var requestData map[string]interface{}
+				if err := json.Unmarshal(body, &requestData); err != nil {
+					log.Error().Err(err).Msg("Failed to parse request body")
+					http.Error(w, "Failed to parse request body", http.StatusBadRequest)
+					return
+				}
+				requestData["creator_device_id"] = deviceID
+				requestData["creator_address"] = creatorAddress
+
+				modifiedBody, err := json.Marshal(requestData)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to marshal modified request body")
+					http.Error(w, "Error processing request", http.StatusInternalServerError)
+					return
+				}
+
+				proxyReq, err = http.NewRequest(r.Method, targetURL, bytes.NewBuffer(modifiedBody))
+				if err != nil {
+					http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
+					return
+				}
+				proxyReq.Header.Set("Content-Type", "application/json")
 			}
 		} else {
-			// For other requests, forward the body as-is
 			proxyReq, err = http.NewRequest(r.Method, targetURL, r.Body)
 			if err != nil {
 				http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
@@ -202,4 +362,8 @@ func RunChain(port int) {
 	if err := http.ListenAndServe(localAddr, nil); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start chain proxy server")
 	}
+}
+
+func NewMultipartWriter(body *bytes.Buffer) *multipart.Writer {
+	return multipart.NewWriter(body)
 }
