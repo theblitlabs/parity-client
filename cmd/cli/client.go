@@ -17,8 +17,6 @@ import (
 	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/config"
-	"github.com/theblitlabs/parity-client/internal/models"
-	"github.com/theblitlabs/parity-client/internal/task"
 )
 
 type KeyStore struct {
@@ -53,12 +51,10 @@ type ResourceConfig struct {
 }
 
 type TaskRequest struct {
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Image       string            `json:"image"`
-	Command     []string          `json:"command"`
-	Env         map[string]string `json:"env,omitempty"`
-	Resources   ResourceConfig    `json:"resources,omitempty"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Image       string   `json:"image"`
+	Command     []string `json:"command"`
 }
 
 func isPortAvailable(port int) error {
@@ -197,21 +193,26 @@ func RunChain(port int) {
 				return
 			}
 
-			validatedTask, err := task.ValidateAndTransform(task.Request{
-				Title:       taskRequest.Title,
-				Description: taskRequest.Description,
-				Image:       taskRequest.Image,
-				Command:     taskRequest.Command,
-				Env:         taskRequest.Env,
-				Resources:   task.ResourceConfig(taskRequest.Resources),
-			}, creatorAddress, deviceID)
-			if err != nil {
-				log.Error().Err(err).Msg("Task validation failed")
-				http.Error(w, fmt.Sprintf("Task validation failed: %v", err), http.StatusBadRequest)
+			if taskRequest.Title == "" {
+				http.Error(w, "Title is required", http.StatusBadRequest)
 				return
 			}
 
-			responseBody, err := json.Marshal(validatedTask)
+			if len(taskRequest.Command) == 0 {
+				http.Error(w, "Command is required", http.StatusBadRequest)
+				return
+			}
+
+			taskData := map[string]interface{}{
+				"title":             taskRequest.Title,
+				"description":       taskRequest.Description,
+				"image":             taskRequest.Image,
+				"command":           taskRequest.Command,
+				"creator_device_id": deviceID,
+				"creator_address":   creatorAddress,
+			}
+
+			responseBody, err := json.Marshal(taskData)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to marshal response")
 				http.Error(w, "Error processing request", http.StatusInternalServerError)
@@ -264,28 +265,11 @@ func RunChain(port int) {
 						return
 					}
 
-					// Unmarshal the config
-					var taskConfig models.TaskConfig
-					if err := json.Unmarshal(validatedTask.Config, &taskConfig); err != nil {
-						log.Error().Err(err).Msg("Failed to unmarshal task config")
-						return
-					}
-
-					taskData := map[string]interface{}{
-						"title":             validatedTask.Title,
-						"description":       validatedTask.Description,
-						"image":             taskRequest.Image,
-						"command":           taskRequest.Command,
-						"creator_device_id": validatedTask.CreatorDeviceID,
-						"creator_address":   validatedTask.CreatorAddress,
-					}
-
 					if err := json.NewEncoder(jsonPart).Encode(taskData); err != nil {
 						log.Error().Err(err).Msg("Failed to encode task request")
 						return
 					}
 
-					// Add the image tar part
 					imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
 					if err != nil {
 						log.Error().Err(err).Msg("Failed to create form file")
@@ -308,7 +292,6 @@ func RunChain(port int) {
 						Int("bodySize", body.Len()).
 						Msg("Prepared multipart request")
 
-					// Create and send multipart request to server
 					req, err := http.NewRequest("POST", targetURL, body)
 					if err != nil {
 						log.Error().Err(err).Msg("Failed to create server request")
