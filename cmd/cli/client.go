@@ -221,7 +221,10 @@ func RunChain(port int) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
-			w.Write(responseBody)
+			if _, err := w.Write(responseBody); err != nil {
+				log.Error().Err(err).Msg("Failed to write response")
+				return
+			}
 
 			if taskRequest.Image != "" {
 				go func() {
