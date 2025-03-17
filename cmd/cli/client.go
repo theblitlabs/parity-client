@@ -44,6 +44,12 @@ type DockerTask struct {
 	Command []string `json:"command,omitempty"`
 }
 
+type ResourceConfig struct {
+	Memory    string `json:"memory,omitempty"`
+	CPUShares int64  `json:"cpu_shares,omitempty"`
+	Timeout   string `json:"timeout,omitempty"`
+}
+
 type TaskRequest struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
@@ -187,118 +193,158 @@ func RunChain(port int) {
 				return
 			}
 
-			// Handle Docker image if present
-			if taskRequest.Image != "" {
-				log := log.With().
-					Str("image", taskRequest.Image).
-					Str("path", path).
-					Logger()
-
-				log.Info().Msg("Processing Docker image request")
-
-				imageName := taskRequest.Image
-				tarFile, err := saveDockerImage(imageName)
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to save Docker image")
-					http.Error(w, fmt.Sprintf("Failed to process Docker image: %v", err), http.StatusInternalServerError)
-					return
-				}
-				defer func() {
-					log.Debug().
-						Str("tarFile", tarFile).
-						Msg("Cleaning up temporary tar file")
-					if err := os.Remove(tarFile); err != nil {
-						log.Error().Err(err).Str("tarFile", tarFile).Msg("Failed to clean up temporary tar file")
-					}
-				}()
-
-				// Read the tar file
-				imageData, err := os.ReadFile(tarFile)
-				if err != nil {
-					log.Error().
-						Err(err).
-						Str("tarFile", tarFile).
-						Msg("Failed to read Docker image tar")
-					http.Error(w, "Failed to read Docker image data", http.StatusInternalServerError)
-					return
-				}
-
-				log.Debug().
-					Str("tarFile", tarFile).
-					Int("dataSizeBytes", len(imageData)).
-					Msg("Read Docker image tar file")
-
-				// Create multipart request
-				body := &bytes.Buffer{}
-				writer := NewMultipartWriter(body)
-
-				// Add the JSON part
-				jsonPart, err := writer.CreateFormField("task")
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to create form field")
-					http.Error(w, "Failed to create form field", http.StatusInternalServerError)
-					return
-				}
-				if err := json.NewEncoder(jsonPart).Encode(taskRequest); err != nil {
-					log.Error().Err(err).Msg("Failed to encode task request")
-					http.Error(w, "Failed to encode task request", http.StatusInternalServerError)
-					return
-				}
-
-				// Add the image tar part
-				imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to create form file")
-					http.Error(w, "Failed to create form file", http.StatusInternalServerError)
-					return
-				}
-				if _, err := imagePart.Write(imageData); err != nil {
-					log.Error().Err(err).Msg("Failed to write image data")
-					http.Error(w, "Failed to write image data", http.StatusInternalServerError)
-					return
-				}
-
-				writer.Close()
-
-				log.Info().
-					Int("requestSizeBytes", body.Len()).
-					Msg("Created multipart request with Docker image")
-
-				// Create new multipart request
-				proxyReq, err = http.NewRequest(r.Method, targetURL, body)
-				if err != nil {
-					log.Error().Err(err).Msg("Error creating proxy request")
-					http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
-					return
-				}
-				proxyReq.Header.Set("Content-Type", writer.FormDataContentType())
-
-				log.Info().Msg("Docker image request ready for forwarding")
-			} else {
-				// Add device ID and creator address to request body
-				var requestData map[string]interface{}
-				if err := json.Unmarshal(body, &requestData); err != nil {
-					log.Error().Err(err).Msg("Failed to parse request body")
-					http.Error(w, "Failed to parse request body", http.StatusBadRequest)
-					return
-				}
-				requestData["creator_device_id"] = deviceID
-				requestData["creator_address"] = creatorAddress
-
-				modifiedBody, err := json.Marshal(requestData)
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to marshal modified request body")
-					http.Error(w, "Error processing request", http.StatusInternalServerError)
-					return
-				}
-
-				proxyReq, err = http.NewRequest(r.Method, targetURL, bytes.NewBuffer(modifiedBody))
-				if err != nil {
-					http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
-					return
-				}
-				proxyReq.Header.Set("Content-Type", "application/json")
+			if taskRequest.Title == "" {
+				http.Error(w, "Title is required", http.StatusBadRequest)
+				return
 			}
+
+			if len(taskRequest.Command) == 0 {
+				http.Error(w, "Command is required", http.StatusBadRequest)
+				return
+			}
+
+			taskData := map[string]interface{}{
+				"title":             taskRequest.Title,
+				"description":       taskRequest.Description,
+				"image":             taskRequest.Image,
+				"command":           taskRequest.Command,
+				"creator_device_id": deviceID,
+				"creator_address":   creatorAddress,
+			}
+
+			responseBody, err := json.Marshal(taskData)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to marshal response")
+				http.Error(w, "Error processing request", http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			if _, err := w.Write(responseBody); err != nil {
+				log.Error().Err(err).Msg("Failed to write response")
+				return
+			}
+
+			if taskRequest.Image != "" {
+				go func() {
+					log := log.With().
+						Str("image", taskRequest.Image).
+						Str("path", path).
+						Logger()
+
+					log.Info().Msg("Processing Docker image request")
+
+					imageName := taskRequest.Image
+					tarFile, err := saveDockerImage(imageName)
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to save Docker image")
+						return
+					}
+					defer func() {
+						log.Debug().
+							Str("tarFile", tarFile).
+							Msg("Cleaning up temporary tar file")
+						if err := os.Remove(tarFile); err != nil {
+							log.Error().Err(err).Str("tarFile", tarFile).Msg("Failed to clean up temporary tar file")
+						}
+					}()
+
+					imageData, err := os.ReadFile(tarFile)
+					if err != nil {
+						log.Error().
+							Err(err).
+							Str("tarFile", tarFile).
+							Msg("Failed to read Docker image tar")
+						return
+					}
+
+					body := &bytes.Buffer{}
+					writer := NewMultipartWriter(body)
+
+					jsonPart, err := writer.CreateFormField("task")
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to create form field")
+						return
+					}
+
+					if err := json.NewEncoder(jsonPart).Encode(taskData); err != nil {
+						log.Error().Err(err).Msg("Failed to encode task request")
+						return
+					}
+
+					imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to create form file")
+						return
+					}
+
+					log.Debug().
+						Str("imageSize", fmt.Sprintf("%d bytes", len(imageData))).
+						Msg("Writing image data to request")
+
+					if _, err := imagePart.Write(imageData); err != nil {
+						log.Error().Err(err).Msg("Failed to write image data")
+						return
+					}
+
+					writer.Close()
+
+					log.Debug().
+						Str("contentType", writer.FormDataContentType()).
+						Int("bodySize", body.Len()).
+						Msg("Prepared multipart request")
+
+					req, err := http.NewRequest("POST", targetURL, body)
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to create server request")
+						return
+					}
+					req.Header.Set("Content-Type", writer.FormDataContentType())
+					req.Header.Set("X-Device-ID", deviceID)
+					req.Header.Set("X-Creator-Address", creatorAddress)
+
+					client := &http.Client{}
+					resp, err := client.Do(req)
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to send request to server")
+						return
+					}
+					defer resp.Body.Close()
+
+					if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+						respBody, err := io.ReadAll(resp.Body)
+						if err != nil {
+							log.Error().
+								Err(err).
+								Int("statusCode", resp.StatusCode).
+								Msg("Failed to read error response from server")
+							return
+						}
+
+						log.Error().
+							Int("statusCode", resp.StatusCode).
+							Str("response", string(respBody)).
+							Str("contentType", resp.Header.Get("Content-Type")).
+							Msg("Server returned error response")
+						return
+					}
+
+					log.Info().
+						Int("statusCode", resp.StatusCode).
+						Msg("Successfully processed and uploaded Docker image")
+				}()
+				return
+			}
+
+			proxyReq, err = http.NewRequest(r.Method, targetURL, bytes.NewBuffer(responseBody))
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to create server request")
+				return
+			}
+			proxyReq.Header.Set("Content-Type", "application/json")
+			proxyReq.Header.Set("X-Device-ID", deviceID)
+			proxyReq.Header.Set("X-Creator-Address", creatorAddress)
 		} else {
 			proxyReq, err = http.NewRequest(r.Method, targetURL, r.Body)
 			if err != nil {
@@ -313,10 +359,6 @@ func RunChain(port int) {
 				proxyReq.Header.Add(header, value)
 			}
 		}
-
-		// Always add device ID and creator address headers
-		proxyReq.Header.Set("X-Device-ID", deviceID)
-		proxyReq.Header.Set("X-Creator-Address", creatorAddress)
 
 		// Forward the request
 		client := &http.Client{}
