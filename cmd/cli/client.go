@@ -17,6 +17,7 @@ import (
 	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
+	"github.com/theblitlabs/parity-client/internal/client"
 	"github.com/theblitlabs/parity-client/internal/config"
 )
 
@@ -114,23 +115,27 @@ func saveDockerImage(imageName string) (string, error) {
 }
 
 func getCreatorAddress() (string, error) {
-	// Create keystore adapter
-	keystoreAdapter, err := keystore.NewAdapter(nil)
+	ks, err := keystore.NewAdapter(nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to create keystore: %w", err)
+		return "", fmt.Errorf("failed to create keystore: %v", err)
 	}
 
-	privateKey, err := keystoreAdapter.LoadPrivateKey()
+	privateKey, err := ks.LoadPrivateKey()
 	if err != nil {
-		return "", fmt.Errorf("failed to load private key: %w", err)
+		return "", fmt.Errorf("failed to load private key: %v", err)
 	}
 
-	address := crypto.PubkeyToAddress(privateKey.PublicKey)
-	return address.Hex(), nil
+	publicKey := crypto.PubkeyToAddress(privateKey.PublicKey)
+	return publicKey.Hex(), nil
 }
 
 func RunChain(port int) {
 	log := gologger.Get().With().Str("component", "chain").Logger()
+
+	if err := client.IsPortAvailable(port); err != nil {
+		log.Error().Err(err).Msg("Port check failed")
+		return
+	}
 
 	// Load config
 	cfg, err := config.LoadConfig("config/config.yaml")
@@ -377,11 +382,6 @@ func RunChain(port int) {
 
 	// Start local proxy server
 	localAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, port)
-
-	// Check if specified port is available
-	if err := isPortAvailable(port); err != nil {
-		log.Fatal().Err(err).Int("port", port).Msg("Chain proxy port is not available")
-	}
 
 	log.Info().
 		Str("address", localAddr).
