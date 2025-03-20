@@ -16,12 +16,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/gologger"
+	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
 	"github.com/theblitlabs/parity-client/internal/config"
 )
-
-type KeyStore struct {
-	PrivateKey string `json:"private_key"`
-}
 
 type DockerConfig struct {
 	Image   string   `json:"image"`
@@ -117,26 +114,18 @@ func saveDockerImage(imageName string) (string, error) {
 }
 
 func getCreatorAddress() (string, error) {
-	keystoreDir := filepath.Join(os.Getenv("HOME"), ".parity")
-	keystorePath := filepath.Join(keystoreDir, "keystore.json")
-
-	data, err := os.ReadFile(keystorePath)
+	// Create keystore adapter
+	keystoreAdapter, err := keystore.NewAdapter(nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to read keystore: %w", err)
+		return "", fmt.Errorf("failed to create keystore: %w", err)
 	}
 
-	var keystore KeyStore
-	if err := json.Unmarshal(data, &keystore); err != nil {
-		return "", fmt.Errorf("failed to parse keystore: %w", err)
-	}
-
-	privateKey := keystore.PrivateKey
-	ecdsaKey, err := crypto.HexToECDSA(privateKey)
+	privateKey, err := keystoreAdapter.LoadPrivateKey()
 	if err != nil {
-		return "", fmt.Errorf("invalid private key in keystore: %w", err)
+		return "", fmt.Errorf("failed to load private key: %w", err)
 	}
 
-	address := crypto.PubkeyToAddress(ecdsaKey.PublicKey)
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 	return address.Hex(), nil
 }
 
