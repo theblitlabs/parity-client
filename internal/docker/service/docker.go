@@ -49,7 +49,9 @@ func (s *DockerService) SaveImage(imageName string) (string, error) {
 		Msg("Generated tar filename")
 
 	if err := s.saveImageToTar(imageName, tarFileName); err != nil {
-		os.RemoveAll(tmpDir)
+		if removeErr := os.RemoveAll(tmpDir); removeErr != nil {
+			s.log.Error().Err(removeErr).Str("tmpDir", tmpDir).Msg("Failed to clean up temporary directory")
+		}
 		return "", err
 	}
 

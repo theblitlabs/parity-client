@@ -50,7 +50,9 @@ func (r *RequestRouter) HandleRequest(w http.ResponseWriter, req *http.Request) 
 	}
 
 	if err := r.proxy.forwardRequest(w, req, path); err != nil {
-		types.WriteError(w, http.StatusBadGateway, err.Error())
+		if writeErr := types.WriteError(w, http.StatusBadGateway, err.Error()); writeErr != nil {
+			r.logger.Error().Err(writeErr).Msg("Failed to write error response")
+		}
 	}
 }
 
@@ -58,13 +60,17 @@ func (r *RequestRouter) handleJSONRequest(w http.ResponseWriter, req *http.Reque
 	var taskRequest task.Request
 	if err := types.ReadJSONBody(req.Body, &taskRequest); err != nil {
 		r.logger.Error().Err(err).Msg("Failed to decode request body")
-		types.WriteError(w, http.StatusBadRequest, "Invalid request body")
+		if writeErr := types.WriteError(w, http.StatusBadRequest, "Invalid request body"); writeErr != nil {
+			r.logger.Error().Err(writeErr).Msg("Failed to write error response")
+		}
 		return
 	}
 
 	if err := r.taskHandler.ValidateAndProcessTask(w, &taskRequest); err != nil {
 		r.logger.Error().Err(err).Msg("Failed to process task")
-		types.WriteError(w, http.StatusBadRequest, err.Error())
+		if writeErr := types.WriteError(w, http.StatusBadRequest, err.Error()); writeErr != nil {
+			r.logger.Error().Err(writeErr).Msg("Failed to write error response")
+		}
 		return
 	}
 }
