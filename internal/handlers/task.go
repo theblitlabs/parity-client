@@ -1,15 +1,16 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/rs/zerolog"
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/config"
 	"github.com/theblitlabs/parity-client/internal/docker/service"
 	"github.com/theblitlabs/parity-client/internal/task"
+	"github.com/theblitlabs/parity-client/internal/types"
 )
 
 // TaskHandler handles task-related operations
@@ -18,6 +19,7 @@ type TaskHandler struct {
 	deviceID    string
 	creatorAddr string
 	docker      *service.DockerService
+	logger      zerolog.Logger
 }
 
 // NewTaskHandler creates a new task handler
@@ -27,6 +29,7 @@ func NewTaskHandler(cfg *config.Config, deviceID, creatorAddr string) *TaskHandl
 		deviceID:    deviceID,
 		creatorAddr: creatorAddr,
 		docker:      service.NewDockerService(),
+		logger:      gologger.Get().With().Str("component", "task_handler").Logger(),
 	}
 }
 
@@ -49,14 +52,7 @@ func (h *TaskHandler) ValidateAndProcessTask(w http.ResponseWriter, req *task.Re
 		"creator_address": h.creatorAddr,
 	}
 
-	responseBody, err := json.Marshal(taskData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal response: %v", err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	if _, err := w.Write(responseBody); err != nil {
+	if err := types.WriteJSON(w, http.StatusAccepted, taskData); err != nil {
 		return fmt.Errorf("failed to write response: %v", err)
 	}
 
@@ -68,27 +64,24 @@ func (h *TaskHandler) ValidateAndProcessTask(w http.ResponseWriter, req *task.Re
 }
 
 func (h *TaskHandler) processDockerImage(imageName string, taskData map[string]interface{}) {
-	log := gologger.Get().With().
-		Str("component", "task_handler").
+	h.logger.Info().
 		Str("image", imageName).
-		Logger()
-
-	log.Info().Msg("Processing Docker image request")
+		Msg("Processing Docker image request")
 
 	tarFile, err := h.docker.SaveImage(imageName)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to save Docker image")
+		h.logger.Error().Err(err).Msg("Failed to save Docker image")
 		return
 	}
 
 	// Construct the correct upload URL
 	uploadURL := fmt.Sprintf("%s/tasks", strings.TrimSuffix(h.config.Runner.ServerURL, "/"))
-	log.Debug().Str("uploadURL", uploadURL).Msg("Uploading Docker image")
+	h.logger.Debug().Str("uploadURL", uploadURL).Msg("Uploading Docker image")
 
 	if err := h.docker.UploadImage(tarFile, taskData, uploadURL); err != nil {
-		log.Error().Err(err).Msg("Failed to upload Docker image")
+		h.logger.Error().Err(err).Msg("Failed to upload Docker image")
 		return
 	}
 
-	log.Info().Msg("Successfully processed and uploaded Docker image")
+	h.logger.Info().Msg("Successfully processed and uploaded Docker image")
 }
