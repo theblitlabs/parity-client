@@ -6,16 +6,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-
-	walletsdk "github.com/theblitlabs/go-wallet-sdk"
-	"github.com/theblitlabs/parity-client/internal/config"
-
-	"os"
-	"path/filepath"
-
 	"github.com/theblitlabs/deviceid"
+	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
-	"github.com/theblitlabs/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/wallet"
+	"github.com/theblitlabs/parity-client/internal/config"
 )
 
 func RunBalance() {
@@ -29,50 +25,45 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to load config")
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get user home directory")
-	}
-
-	ks, err := keystore.NewKeystore(keystore.Config{
-		DirPath:  filepath.Join(homeDir, ".parity"),
-		FileName: "keystore.json",
-	})
+	keystoreAdapter, err := keystore.NewAdapter(nil)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create keystore")
 	}
 
-	privateKey, err := ks.LoadPrivateKey()
+	privateKey, err := keystoreAdapter.LoadPrivateKey()
 	if err != nil {
 		log.Fatal().Err(err).Msg("No private key found - please authenticate first using 'parity auth'")
 	}
 
-	clientConfig := walletsdk.ClientConfig{
+	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
 		RPCURL:       cfg.Ethereum.RPC,
 		ChainID:      cfg.Ethereum.ChainID,
 		PrivateKey:   common.Bytes2Hex(crypto.FromECDSA(privateKey)),
 		TokenAddress: common.HexToAddress(cfg.Ethereum.TokenAddress),
 		StakeAddress: common.HexToAddress(cfg.Ethereum.StakeWalletAddress),
-	}
-
-	client, err := walletsdk.NewClient(clientConfig)
+	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create Ethereum client")
 	}
 
-	walletBalance, err := client.GetBalance(client.Address())
+	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.Ethereum.TokenAddress))
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create token contract")
+	}
+
+	tokenBalance, err := walletAdapter.GetTokenBalance(ctx, token, walletAdapter.GetAddress())
 	if err != nil {
 		select {
 		case <-ctx.Done():
-			log.Fatal().Err(ctx.Err()).Msg("Operation timed out while getting wallet balance")
+			log.Fatal().Err(ctx.Err()).Msg("Operation timed out while getting token balance")
 		default:
-			log.Fatal().Err(err).Msg("Failed to get wallet balance")
+			log.Fatal().Err(err).Msg("Failed to get token balance")
 		}
 	}
 
 	log.Info().
-		Str("wallet_address", client.Address().Hex()).
-		Str("balance", walletBalance.String()+" PRTY").
+		Str("wallet_address", walletAdapter.GetAddress().Hex()).
+		Str("balance", tokenBalance.String()+" PRTY").
 		Msg("Wallet token balance")
 
 	deviceIDManager := deviceid.NewManager(deviceid.Config{})
@@ -81,7 +72,15 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to get device ID")
 	}
 
-	stakeInfo, err := client.GetStakeInfo(deviceID)
+	stakeWallet, err := walletAdapter.NewStakeWallet(
+		common.HexToAddress(cfg.Ethereum.StakeWalletAddress),
+		common.HexToAddress(cfg.Ethereum.TokenAddress),
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create stake wallet contract")
+	}
+
+	stakeInfo, err := walletAdapter.GetStakeInfo(ctx, stakeWallet, deviceID)
 	if err != nil {
 		select {
 		case <-ctx.Done():
@@ -98,7 +97,7 @@ func RunBalance() {
 			Str("wallet_address", stakeInfo.WalletAddress.Hex()).
 			Msg("Current stake info")
 
-		contractBalance, err := client.GetBalance(clientConfig.StakeAddress)
+		contractBalance, err := walletAdapter.GetTokenBalance(ctx, token, common.HexToAddress(cfg.Ethereum.StakeWalletAddress))
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -108,8 +107,8 @@ func RunBalance() {
 			}
 		}
 		log.Info().
-			Str("balance", contractBalance.String()).
-			Str("contract_address", clientConfig.StakeAddress.Hex()).
+			Str("balance", contractBalance.String()+" PRTY").
+			Str("contract_address", cfg.Ethereum.StakeWalletAddress).
 			Msg("Contract token balance")
 	} else {
 		log.Info().Msg("No active stake found")

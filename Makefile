@@ -12,6 +12,11 @@ AIR_VERSION=v1.49.0
 GOPATH=$(shell go env GOPATH)
 AIR=$(GOPATH)/bin/air
 
+# Formatting and linting tools
+GOFUMPT=$(GOPATH)/bin/gofumpt
+GOIMPORTS=$(GOPATH)/bin/goimports
+GOLANGCI_LINT=$(shell which golangci-lint)
+
 # Test related variables
 COVERAGE_DIR=coverage
 COVERAGE_PROFILE=$(COVERAGE_DIR)/coverage.out
@@ -20,13 +25,19 @@ TEST_FLAGS=-race -coverprofile=$(COVERAGE_PROFILE) -covermode=atomic
 TEST_PACKAGES=./...  # This will test all packages
 TEST_PATH=./test/...
 
+# Linting and formatting parameters
+LINT_FLAGS=--timeout=5m
+LINT_CONFIG=.golangci.yml
+LINT_OUTPUT_FORMAT=colored-line-number
+LINT_VERBOSE=false
+
 # Build flags
 BUILD_FLAGS=-v
 
-# Add these lines after the existing parameters
+# Installation path
 INSTALL_PATH=/usr/local/bin
 
-.PHONY: all build test run clean deps fmt help docker-up docker-down docker-logs docker-build docker-clean install-air watch install uninstall install-lint-tools lint
+.PHONY: all build test run clean deps fmt help docker-up docker-down docker-logs docker-build docker-clean install-air watch install uninstall install-lint-tools lint install-hooks format-lint check-format
 
 all: clean build
 
@@ -45,7 +56,6 @@ setup-coverage: ## Create coverage directory
 run:  ## Run the application
 	$(GOCMD) run $(MAIN_PATH) 
 
-
 stake:  ## Stake tokens in the network
 	$(GOCMD) run $(MAIN_PATH) stake --amount 10
 
@@ -61,13 +71,53 @@ clean: ## Clean build files
 	find . -type f -name '*.out' -delete
 	rm -rf tmp/
 
-deps: ## Download dependencies
-	git submodule update --init --recursive
-	$(GOMOD) tidy
-	$(GOMOD) download
+fmt: ## Format code using gofumpt (preferred) or gofmt
+	@echo "Formatting code..."
+	@if command -v $(GOFUMPT) >/dev/null 2>&1; then \
+		echo "Using gofumpt for better formatting..."; \
+		$(GOFUMPT) -l -w .; \
+	else \
+		echo "gofumpt not found, using standard gofmt..."; \
+		$(GOFMT) ./...; \
+		echo "Consider installing gofumpt: go install mvdan.cc/gofumpt@latest"; \
+	fi
 
-fmt: ## Format code
-	$(GOFMT) ./...
+imports: ## Fix imports formatting and add missing imports
+	@echo "Organizing imports..."
+	@if command -v $(GOIMPORTS) >/dev/null 2>&1; then \
+		$(GOIMPORTS) -w -local github.com/theblitlabs/parity-runner .; \
+	else \
+		echo "goimports not found. Installing..."; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
+		$(GOIMPORTS) -w -local github.com/theblitlabs/parity-runner .; \
+	fi
+
+format: fmt imports ## Run all formatters (gofumpt + goimports)
+	@echo "All formatting completed."
+
+lint: ## Run linting with options (make lint VERBOSE=true CONFIG=custom.yml OUTPUT=json)
+	@echo "Running linters..."
+	$(eval FINAL_LINT_FLAGS := $(LINT_FLAGS))
+	@if [ "$(VERBOSE)" = "true" ]; then \
+		FINAL_LINT_FLAGS="$(FINAL_LINT_FLAGS) -v"; \
+	fi
+	@if [ -n "$(CONFIG)" ]; then \
+		FINAL_LINT_FLAGS="$(FINAL_LINT_FLAGS) --config=$(CONFIG)"; \
+	else \
+		FINAL_LINT_FLAGS="$(FINAL_LINT_FLAGS) --config=$(LINT_CONFIG)"; \
+	fi
+	@if [ -n "$(OUTPUT)" ]; then \
+		FINAL_LINT_FLAGS="$(FINAL_LINT_FLAGS) --out-format=$(OUTPUT)"; \
+	else \
+		FINAL_LINT_FLAGS="$(FINAL_LINT_FLAGS) --out-format=$(LINT_OUTPUT_FORMAT)"; \
+	fi
+	$(GOLANGCI_LINT) run $(FINAL_LINT_FLAGS)
+
+format-lint: format lint ## Format code and run linters in one step
+
+check-format: ## Check code formatting without applying changes (useful for CI)
+	@echo "Checking code formatting..."
+	@./scripts/check_format.sh
 
 install-air: ## Install air for hot reloading
 	@if ! command -v air > /dev/null; then \
@@ -91,10 +141,15 @@ uninstall: ## Remove parity command from system
 	@sudo rm -f $(INSTALL_PATH)/$(BINARY_NAME)
 	@echo "Uninstallation complete"
 
-lint: ## Run linting
-	golangci-lint run --timeout=5m
-
-install-lint-tools: ## Install linting tools
+install-lint-tools: ## Install formatting and linting tools
+	@echo "Installing linting and formatting tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install mvdan.cc/gofumpt@latest
+	go install golang.org/x/tools/cmd/goimports@latest
+	@echo "Tools installation complete."
+
+install-hooks: ## Install git hooks
+	@echo "Installing git hooks..."
+	@./scripts/hooks/install-hooks.sh
 
 .DEFAULT_GOAL := help

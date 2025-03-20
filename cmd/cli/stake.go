@@ -2,20 +2,20 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"math/big"
-	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-
 	"github.com/spf13/cobra"
 	"github.com/theblitlabs/deviceid"
 	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
-	"github.com/theblitlabs/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/wallet"
 	"github.com/theblitlabs/parity-client/internal/config"
 	"github.com/theblitlabs/parity-client/internal/utils"
 )
@@ -52,7 +52,6 @@ func RunStake() {
 func executeStake(amount float64) {
 	log := gologger.Get().With().Str("component", "stake").Logger()
 
-	// Load configuration
 	cfg, err := config.LoadConfig("config/config.yaml")
 	if err != nil {
 		log.Fatal().
@@ -61,19 +60,7 @@ func executeStake(amount float64) {
 		return
 	}
 
-	// Get private key from keystore
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Failed to get user home directory")
-		return
-	}
-
-	ks, err := keystore.NewKeystore(keystore.Config{
-		DirPath:  filepath.Join(homeDir, ".parity"),
-		FileName: "keystore.json",
-	})
+	keystoreAdapter, err := keystore.NewAdapter(nil)
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -81,7 +68,7 @@ func executeStake(amount float64) {
 		return
 	}
 
-	privateKey, err := ks.LoadPrivateKey()
+	privateKey, err := keystoreAdapter.LoadPrivateKey()
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -89,11 +76,12 @@ func executeStake(amount float64) {
 		return
 	}
 
-	// Create Ethereum client
-	client, err := walletsdk.NewClient(walletsdk.ClientConfig{
-		RPCURL:     cfg.Ethereum.RPC,
-		ChainID:    cfg.Ethereum.ChainID,
-		PrivateKey: common.Bytes2Hex(crypto.FromECDSA(privateKey)),
+	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
+		RPCURL:       cfg.Ethereum.RPC,
+		ChainID:      cfg.Ethereum.ChainID,
+		PrivateKey:   common.Bytes2Hex(crypto.FromECDSA(privateKey)),
+		TokenAddress: common.HexToAddress(cfg.Ethereum.TokenAddress),
+		StakeAddress: common.HexToAddress(cfg.Ethereum.StakeWalletAddress),
 	})
 	if err != nil {
 		log.Fatal().
@@ -104,7 +92,6 @@ func executeStake(amount float64) {
 		return
 	}
 
-	// Verify device ID
 	deviceIDManager := deviceid.NewManager(deviceid.Config{})
 	deviceID, err := deviceIDManager.VerifyDeviceID()
 	if err != nil {
@@ -116,29 +103,28 @@ func executeStake(amount float64) {
 
 	log.Info().
 		Str("device_id", deviceID).
-		Str("wallet", client.Address().Hex()).
+		Str("wallet", walletAdapter.GetAddress().Hex()).
 		Msg("Device verified successfully")
 
 	tokenAddr := common.HexToAddress(cfg.Ethereum.TokenAddress)
 	stakeWalletAddr := common.HexToAddress(cfg.Ethereum.StakeWalletAddress)
 
-	// Check token balance
-	token, err := walletsdk.NewParityToken(tokenAddr, client)
+	token, err := walletAdapter.NewParityToken(tokenAddr)
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Str("token_address", tokenAddr.Hex()).
-			Str("wallet", client.Address().Hex()).
+			Str("wallet", walletAdapter.GetAddress().Hex()).
 			Msg("Failed to create token contract - please try again")
 		return
 	}
 
-	balance, err := token.BalanceOf(&bind.CallOpts{}, client.Address())
+	balance, err := token.BalanceOf(nil, walletAdapter.GetAddress())
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Str("token_address", tokenAddr.Hex()).
-			Str("wallet", client.Address().Hex()).
+			Str("wallet", walletAdapter.GetAddress().Hex()).
 			Msg("Failed to check token balance - please try again")
 		return
 	}
@@ -157,8 +143,7 @@ func executeStake(amount float64) {
 		Str("token_address", tokenAddr.Hex()).
 		Msg("Current token balance verified")
 
-	// Check allowance
-	allowance, err := token.Allowance(&bind.CallOpts{}, client.Address(), stakeWalletAddr)
+	allowance, err := token.Allowance(nil, walletAdapter.GetAddress(), stakeWalletAddr)
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -168,13 +153,12 @@ func executeStake(amount float64) {
 		return
 	}
 
-	// Approve token spending if needed
 	if allowance.Cmp(amountToStake) < 0 {
 		log.Info().
 			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
 			Msg("Approving token spending...")
 
-		txOpts, err := client.GetTransactOpts()
+		txOpts, err := walletAdapter.GetTransactOpts()
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -196,8 +180,8 @@ func executeStake(amount float64) {
 			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
 			Msg("Token approval submitted - waiting for confirmation...")
 
-		// Wait for approval confirmation
-		receipt, err := bind.WaitMined(context.Background(), client, tx)
+		ctx := context.Background()
+		receipt, err := bind.WaitMined(ctx, walletAdapter.GetClient(), tx)
 		if err != nil {
 			log.Fatal().
 				Err(err).
@@ -217,18 +201,7 @@ func executeStake(amount float64) {
 			Str("tx_hash", tx.Hash().Hex()).
 			Msg("Token approval confirmed successfully")
 
-		// Small delay to ensure approval is propagated
 		time.Sleep(5 * time.Second)
-	}
-
-	// Create stake wallet contract instance
-	stakeWallet, err := walletsdk.NewStakeWallet(client, stakeWalletAddr, tokenAddr)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Str("stake_wallet", stakeWalletAddr.Hex()).
-			Msg("Failed to connect to stake contract - please try again")
-		return
 	}
 
 	log.Info().
@@ -236,8 +209,16 @@ func executeStake(amount float64) {
 		Str("device_id", deviceID).
 		Msg("Submitting stake transaction...")
 
-	// Execute stake transaction
-	tx, err := stakeWallet.Stake(amountToStake, deviceID)
+	stakeWallet, err := walletAdapter.NewStakeWallet(stakeWalletAddr, tokenAddr)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Str("stake_wallet", stakeWalletAddr.Hex()).
+			Msg("Failed to create stake wallet contract")
+		return
+	}
+
+	tx, err := walletAdapter.Stake(context.Background(), stakeWallet, amountToStake, deviceID)
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -251,40 +232,12 @@ func executeStake(amount float64) {
 		Str("tx_hash", tx.Hash().Hex()).
 		Str("amount", utils.FormatEther(amountToStake)+" PRTY").
 		Str("device_id", deviceID).
-		Str("wallet", client.Address().Hex()).
-		Msg("Stake transaction submitted - waiting for confirmation...")
-
-	// Wait for stake transaction confirmation
-	receipt, err := bind.WaitMined(context.Background(), client, tx)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("tx_hash", tx.Hash().Hex()).
-			Msg("Failed to confirm stake transaction - please check the transaction status")
-		return
-	}
-
-	if receipt.Status == 1 {
-		log.Info().
-			Str("tx_hash", tx.Hash().Hex()).
-			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
-			Str("device_id", deviceID).
-			Str("wallet", client.Address().Hex()).
-			Uint64("block_number", receipt.BlockNumber.Uint64()).
-			Msg("Stake transaction confirmed successfully! Your device is now registered and ready to process tasks.")
-	} else {
-		log.Error().
-			Str("tx_hash", tx.Hash().Hex()).
-			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
-			Msg("Stake transaction failed - please check the transaction status")
-	}
+		Msg("Stake transaction submitted successfully")
 }
 
 func amountWei(amount float64) *big.Int {
-	amountWei := new(big.Float).Mul(
-		big.NewFloat(amount),
-		new(big.Float).SetFloat64(1e18),
-	)
-	wei, _ := amountWei.Int(nil)
+	floatStr := fmt.Sprintf("%.18f", amount)
+	wei := new(big.Int)
+	wei.SetString(strings.Replace(floatStr, ".", "", 1), 10)
 	return wei
 }

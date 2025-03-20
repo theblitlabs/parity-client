@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,13 +9,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	walletsdk "github.com/theblitlabs/go-wallet-sdk"
-	"github.com/theblitlabs/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/wallet"
 	"github.com/theblitlabs/parity-client/internal/config"
-)
-
-const (
-	KeystoreDirName  = ".parity"
-	KeystoreFileName = "keystore.json"
 )
 
 func RunAuth() {
@@ -66,37 +60,28 @@ func ExecuteAuth(privateKey string, configPath string) error {
 		return fmt.Errorf("invalid private key format: %w", err)
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	ks, err := keystore.NewKeystore(keystore.Config{
-		DirPath:  filepath.Join(homeDir, KeystoreDirName),
-		FileName: KeystoreFileName,
-	})
+	keystoreAdapter, err := keystore.NewAdapter(nil) // Uses default config
 	if err != nil {
 		return fmt.Errorf("failed to create keystore: %w", err)
 	}
 
-	if err := ks.SavePrivateKey(privateKey); err != nil {
+	if err := keystoreAdapter.SavePrivateKey(privateKey); err != nil {
 		return fmt.Errorf("failed to save private key: %w", err)
 	}
 
-	tokenAddress := common.HexToAddress(cfg.Ethereum.TokenAddress)
-	client, err := walletsdk.NewClient(walletsdk.ClientConfig{
+	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
 		RPCURL:       cfg.Ethereum.RPC,
 		ChainID:      cfg.Ethereum.ChainID,
 		PrivateKey:   privateKey,
-		TokenAddress: tokenAddress,
+		TokenAddress: common.HexToAddress(cfg.Ethereum.TokenAddress),
 	})
 	if err != nil {
 		return fmt.Errorf("invalid private key: %w", err)
 	}
 
 	log.Info().
-		Str("address", client.Address().Hex()).
-		Str("keystore", fmt.Sprintf("%s/%s", KeystoreDirName, KeystoreFileName)).
+		Str("address", walletAdapter.GetAddress().Hex()).
+		Str("keystore", fmt.Sprintf("%s/%s", keystore.DefaultDirName, keystore.DefaultFileName)).
 		Msg("Wallet authenticated successfully")
 
 	return nil
