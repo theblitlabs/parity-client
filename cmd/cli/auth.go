@@ -60,7 +60,6 @@ func ExecuteAuth(privateKey string, configPath string) error {
 		return fmt.Errorf("invalid private key format: %w", err)
 	}
 
-	// Create keystore adapter
 	keystoreAdapter, err := keystore.NewAdapter(nil) // Uses default config
 	if err != nil {
 		return fmt.Errorf("failed to create keystore: %w", err)
@@ -70,7 +69,6 @@ func ExecuteAuth(privateKey string, configPath string) error {
 		return fmt.Errorf("failed to save private key: %w", err)
 	}
 
-	// Create wallet adapter
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
 		RPCURL:       cfg.Ethereum.RPC,
 		ChainID:      cfg.Ethereum.ChainID,

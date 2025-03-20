@@ -11,7 +11,6 @@ import (
 	"github.com/theblitlabs/parity-client/internal/types"
 )
 
-// RequestRouter handles routing of incoming requests
 type RequestRouter struct {
 	config      *config.Config
 	deviceID    string
@@ -21,7 +20,6 @@ type RequestRouter struct {
 	logger      zerolog.Logger
 }
 
-// NewRequestRouter creates a new request router
 func NewRequestRouter(cfg *config.Config, deviceID, creatorAddr string) *RequestRouter {
 	return &RequestRouter{
 		config:      cfg,
@@ -33,7 +31,6 @@ func NewRequestRouter(cfg *config.Config, deviceID, creatorAddr string) *Request
 	}
 }
 
-// HandleRequest handles incoming HTTP requests
 func (r *RequestRouter) HandleRequest(w http.ResponseWriter, req *http.Request) {
 	r.logger.Debug().
 		Str("original_path", req.URL.Path).

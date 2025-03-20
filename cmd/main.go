@@ -33,7 +33,6 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVar(&logMode, "log", "pretty", "Log mode: debug, pretty, info, prod, test")
 
-	// Add all commands
 	commands.AddCommands(rootCmd)
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/theblitlabs/parity-client/internal/handlers"
 )
 
-// Server represents the proxy server
 type Server struct {
 	config        *config.Config
 	deviceID      string
@@ -18,7 +17,6 @@ type Server struct {
 	requestRouter *handlers.RequestRouter
 }
 
-// NewServer creates a new proxy server instance
 func NewServer(cfg *config.Config, deviceID, creatorAddr string, port int) *Server {
 	return &Server{
 		config:        cfg,
@@ -29,7 +27,6 @@ func NewServer(cfg *config.Config, deviceID, creatorAddr string, port int) *Serv
 	}
 }
 
-// Start starts the proxy server
 func (s *Server) Start() error {
 	log := gologger.Get().With().Str("component", "proxy").Logger()
 

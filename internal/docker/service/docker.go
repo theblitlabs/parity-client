@@ -16,19 +16,16 @@ import (
 	"github.com/theblitlabs/gologger"
 )
 
-// DockerService handles Docker-related operations
 type DockerService struct {
 	log zerolog.Logger
 }
 
-// NewDockerService creates a new Docker service
 func NewDockerService() *DockerService {
 	return &DockerService{
 		log: gologger.Get().With().Str("component", "docker").Logger(),
 	}
 }
 
-// SaveImage saves a Docker image to a tar file
 func (s *DockerService) SaveImage(imageName string) (string, error) {
 	s.log.Info().
 		Str("image", imageName).
@@ -67,7 +64,6 @@ func (s *DockerService) SaveImage(imageName string) (string, error) {
 	return tarFileName, nil
 }
 
-// UploadImage uploads a Docker image to the server
 func (s *DockerService) UploadImage(tarFile string, taskData map[string]interface{}, serverURL string) error {
 	defer func() {
 		s.log.Debug().
@@ -86,7 +82,6 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	// Add task data
 	jsonPart, err := writer.CreateFormField("task")
 	if err != nil {
 		return fmt.Errorf("failed to create form field: %v", err)
@@ -96,7 +91,6 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 		return fmt.Errorf("failed to encode task request: %v", err)
 	}
 
-	// Add image file
 	imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
 	if err != nil {
 		return fmt.Errorf("failed to create form file: %v", err)
@@ -117,14 +111,12 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 		Int("bodySize", body.Len()).
 		Msg("Prepared multipart request")
 
-	// Use the server URL as is, without modifying the path
 	req, err := http.NewRequest("POST", serverURL, body)
 	if err != nil {
 		return fmt.Errorf("failed to create server request: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	// Set required headers
 	deviceID, ok := taskData["device_id"].(string)
 	if ok {
 		req.Header.Set("X-Device-ID", deviceID)

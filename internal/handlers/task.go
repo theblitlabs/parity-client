@@ -13,7 +13,6 @@ import (
 	"github.com/theblitlabs/parity-client/internal/types"
 )
 
-// TaskHandler handles task-related operations
 type TaskHandler struct {
 	config      *config.Config
 	deviceID    string
@@ -22,7 +21,6 @@ type TaskHandler struct {
 	logger      zerolog.Logger
 }
 
-// NewTaskHandler creates a new task handler
 func NewTaskHandler(cfg *config.Config, deviceID, creatorAddr string) *TaskHandler {
 	return &TaskHandler{
 		config:      cfg,
@@ -33,7 +31,6 @@ func NewTaskHandler(cfg *config.Config, deviceID, creatorAddr string) *TaskHandl
 	}
 }
 
-// ValidateAndProcessTask validates and processes a task request
 func (h *TaskHandler) ValidateAndProcessTask(w http.ResponseWriter, req *task.Request) error {
 	if req.Title == "" {
 		return fmt.Errorf("title is required")
@@ -74,7 +71,6 @@ func (h *TaskHandler) processDockerImage(imageName string, taskData map[string]i
 		return
 	}
 
-	// Construct the correct upload URL
 	uploadURL := fmt.Sprintf("%s/tasks", strings.TrimSuffix(h.config.Runner.ServerURL, "/"))
 	h.logger.Debug().Str("uploadURL", uploadURL).Msg("Uploading Docker image")
 

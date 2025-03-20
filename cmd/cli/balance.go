@@ -25,7 +25,6 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to load config")
 	}
 
-	// Create keystore adapter
 	keystoreAdapter, err := keystore.NewAdapter(nil)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create keystore")
@@ -36,7 +35,6 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("No private key found - please authenticate first using 'parity auth'")
 	}
 
-	// Create wallet adapter
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
 		RPCURL:       cfg.Ethereum.RPC,
 		ChainID:      cfg.Ethereum.ChainID,
@@ -48,13 +46,11 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to create Ethereum client")
 	}
 
-	// Create token contract
 	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.Ethereum.TokenAddress))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create token contract")
 	}
 
-	// Get token balance
 	tokenBalance, err := walletAdapter.GetTokenBalance(ctx, token, walletAdapter.GetAddress())
 	if err != nil {
 		select {
@@ -76,7 +72,6 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to get device ID")
 	}
 
-	// Create stake wallet contract
 	stakeWallet, err := walletAdapter.NewStakeWallet(
 		common.HexToAddress(cfg.Ethereum.StakeWalletAddress),
 		common.HexToAddress(cfg.Ethereum.TokenAddress),
@@ -85,7 +80,6 @@ func RunBalance() {
 		log.Fatal().Err(err).Msg("Failed to create stake wallet contract")
 	}
 
-	// Get stake info
 	stakeInfo, err := walletAdapter.GetStakeInfo(ctx, stakeWallet, deviceID)
 	if err != nil {
 		select {
@@ -103,7 +97,6 @@ func RunBalance() {
 			Str("wallet_address", stakeInfo.WalletAddress.Hex()).
 			Msg("Current stake info")
 
-		// Get contract token balance
 		contractBalance, err := walletAdapter.GetTokenBalance(ctx, token, common.HexToAddress(cfg.Ethereum.StakeWalletAddress))
 		if err != nil {
 			select {

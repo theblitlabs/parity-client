@@ -6,7 +6,6 @@ import (
 	"os/exec"
 )
 
-// SaveImage saves a Docker image to a tar file
 func SaveImage(imageName string) (string, error) {
 	outputFile := fmt.Sprintf("%s.tar", imageName)
 	cmd := exec.Command("docker", "save", "-o", outputFile, imageName)

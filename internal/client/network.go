@@ -5,7 +5,6 @@ import (
 	"net"
 )
 
-// IsPortAvailable checks if a port is available for use
 func IsPortAvailable(port int) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

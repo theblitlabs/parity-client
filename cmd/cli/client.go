@@ -66,31 +66,26 @@ func getCreatorAddress() (string, error) {
 func RunChain(port int) {
 	log := gologger.Get().With().Str("component", "chain").Logger()
 
-	// Check if port is available
 	if err := client.IsPortAvailable(port); err != nil {
 		log.Fatal().Err(err).Int("port", port).Msg("Port is not available")
 	}
 
-	// Load config
 	cfg, err := config.LoadConfig("config/config.yaml")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load config")
 	}
 
-	// Get or generate device ID
 	deviceIDManager := deviceid.NewManager(deviceid.Config{})
 	deviceID, err := deviceIDManager.VerifyDeviceID()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to verify device ID")
 	}
 
-	// Get creator address from keystore
 	creatorAddress, err := getCreatorAddress()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get creator address. Please authenticate first using 'auth' command")
 	}
 
-	// Create and start proxy server
 	server := proxy.NewServer(cfg, deviceID, creatorAddress, port)
 	if err := server.Start(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start chain proxy server")

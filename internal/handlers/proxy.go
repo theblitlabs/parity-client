@@ -39,27 +39,21 @@ func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, 
 		return fmt.Errorf("error creating proxy request: %v", err)
 	}
 
-	// Copy original headers
 	types.CopyHeaders(proxyReq.Header, req.Header)
 
-	// Add custom headers
 	proxyReq.Header.Set("X-Device-ID", p.deviceID)
 	proxyReq.Header.Set("X-Creator-Address", p.creatorAddr)
 
-	// Forward the request
 	resp, err := p.client.Do(proxyReq)
 	if err != nil {
 		return fmt.Errorf("error forwarding request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	// Copy response headers
 	types.CopyHeaders(w.Header(), resp.Header)
 
-	// Set response status code
 	w.WriteHeader(resp.StatusCode)
 
-	// Copy response body
 	if _, err := types.CopyBody(w, resp.Body); err != nil {
 		p.logger.Error().Err(err).Msg("Failed to copy response body")
 		return err
