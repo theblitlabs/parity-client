@@ -2,12 +2,9 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,8 +14,8 @@ import (
 	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
-	"github.com/theblitlabs/parity-client/internal/client"
 	"github.com/theblitlabs/parity-client/internal/config"
+	"github.com/theblitlabs/parity-client/internal/proxy"
 )
 
 type DockerConfig struct {
@@ -125,17 +122,12 @@ func getCreatorAddress() (string, error) {
 		return "", fmt.Errorf("failed to load private key: %v", err)
 	}
 
-	publicKey := crypto.PubkeyToAddress(privateKey.PublicKey)
-	return publicKey.Hex(), nil
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+	return address.Hex(), nil
 }
 
 func RunChain(port int) {
 	log := gologger.Get().With().Str("component", "chain").Logger()
-
-	if err := client.IsPortAvailable(port); err != nil {
-		log.Error().Err(err).Msg("Port check failed")
-		return
-	}
 
 	// Load config
 	cfg, err := config.LoadConfig("config/config.yaml")
@@ -156,241 +148,9 @@ func RunChain(port int) {
 		log.Fatal().Err(err).Msg("Failed to get creator address. Please authenticate first using 'auth' command")
 	}
 
-	// Proxy request to the server
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug().
-			Str("original_path", r.URL.Path).
-			Str("method", r.Method).
-			Str("content_type", r.Header.Get("Content-Type")).
-			Msg("Received request")
-
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		path = strings.TrimPrefix(path, "api/")
-
-		targetURL := fmt.Sprintf("%s/%s", strings.TrimSuffix(cfg.Runner.ServerURL, "/"), path)
-
-		var proxyReq *http.Request
-		var err error
-
-		if r.Method == "POST" && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				http.Error(w, "Error reading request body", http.StatusInternalServerError)
-				return
-			}
-			r.Body.Close()
-
-			var taskRequest TaskRequest
-			if err := json.Unmarshal(body, &taskRequest); err != nil {
-				log.Error().Err(err).Msg("Failed to decode request body")
-				http.Error(w, "Invalid request body", http.StatusBadRequest)
-				return
-			}
-
-			if taskRequest.Title == "" {
-				http.Error(w, "Title is required", http.StatusBadRequest)
-				return
-			}
-
-			if len(taskRequest.Command) == 0 {
-				http.Error(w, "Command is required", http.StatusBadRequest)
-				return
-			}
-
-			taskData := map[string]interface{}{
-				"title":             taskRequest.Title,
-				"description":       taskRequest.Description,
-				"image":             taskRequest.Image,
-				"command":           taskRequest.Command,
-				"creator_device_id": deviceID,
-				"creator_address":   creatorAddress,
-			}
-
-			responseBody, err := json.Marshal(taskData)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to marshal response")
-				http.Error(w, "Error processing request", http.StatusInternalServerError)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusAccepted)
-			if _, err := w.Write(responseBody); err != nil {
-				log.Error().Err(err).Msg("Failed to write response")
-				return
-			}
-
-			if taskRequest.Image != "" {
-				go func() {
-					log := log.With().
-						Str("image", taskRequest.Image).
-						Str("path", path).
-						Logger()
-
-					log.Info().Msg("Processing Docker image request")
-
-					imageName := taskRequest.Image
-					tarFile, err := saveDockerImage(imageName)
-					if err != nil {
-						log.Error().Err(err).Msg("Failed to save Docker image")
-						return
-					}
-					defer func() {
-						log.Debug().
-							Str("tarFile", tarFile).
-							Msg("Cleaning up temporary tar file")
-						if err := os.Remove(tarFile); err != nil {
-							log.Error().Err(err).Str("tarFile", tarFile).Msg("Failed to clean up temporary tar file")
-						}
-					}()
-
-					imageData, err := os.ReadFile(tarFile)
-					if err != nil {
-						log.Error().
-							Err(err).
-							Str("tarFile", tarFile).
-							Msg("Failed to read Docker image tar")
-						return
-					}
-
-					body := &bytes.Buffer{}
-					writer := NewMultipartWriter(body)
-
-					jsonPart, err := writer.CreateFormField("task")
-					if err != nil {
-						log.Error().Err(err).Msg("Failed to create form field")
-						return
-					}
-
-					if err := json.NewEncoder(jsonPart).Encode(taskData); err != nil {
-						log.Error().Err(err).Msg("Failed to encode task request")
-						return
-					}
-
-					imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
-					if err != nil {
-						log.Error().Err(err).Msg("Failed to create form file")
-						return
-					}
-
-					log.Debug().
-						Str("imageSize", fmt.Sprintf("%d bytes", len(imageData))).
-						Msg("Writing image data to request")
-
-					if _, err := imagePart.Write(imageData); err != nil {
-						log.Error().Err(err).Msg("Failed to write image data")
-						return
-					}
-
-					writer.Close()
-
-					log.Debug().
-						Str("contentType", writer.FormDataContentType()).
-						Int("bodySize", body.Len()).
-						Msg("Prepared multipart request")
-
-					req, err := http.NewRequest("POST", targetURL, body)
-					if err != nil {
-						log.Error().Err(err).Msg("Failed to create server request")
-						return
-					}
-					req.Header.Set("Content-Type", writer.FormDataContentType())
-					req.Header.Set("X-Device-ID", deviceID)
-					req.Header.Set("X-Creator-Address", creatorAddress)
-
-					client := &http.Client{}
-					resp, err := client.Do(req)
-					if err != nil {
-						log.Error().Err(err).Msg("Failed to send request to server")
-						return
-					}
-					defer resp.Body.Close()
-
-					if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-						respBody, err := io.ReadAll(resp.Body)
-						if err != nil {
-							log.Error().
-								Err(err).
-								Int("statusCode", resp.StatusCode).
-								Msg("Failed to read error response from server")
-							return
-						}
-
-						log.Error().
-							Int("statusCode", resp.StatusCode).
-							Str("response", string(respBody)).
-							Str("contentType", resp.Header.Get("Content-Type")).
-							Msg("Server returned error response")
-						return
-					}
-
-					log.Info().
-						Int("statusCode", resp.StatusCode).
-						Msg("Successfully processed and uploaded Docker image")
-				}()
-				return
-			}
-
-			proxyReq, err = http.NewRequest(r.Method, targetURL, bytes.NewBuffer(responseBody))
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to create server request")
-				return
-			}
-			proxyReq.Header.Set("Content-Type", "application/json")
-			proxyReq.Header.Set("X-Device-ID", deviceID)
-			proxyReq.Header.Set("X-Creator-Address", creatorAddress)
-		} else {
-			proxyReq, err = http.NewRequest(r.Method, targetURL, r.Body)
-			if err != nil {
-				http.Error(w, "Error creating proxy request", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		// Copy headers
-		for header, values := range r.Header {
-			for _, value := range values {
-				proxyReq.Header.Add(header, value)
-			}
-		}
-
-		// Forward the request
-		client := &http.Client{}
-		resp, err := client.Do(proxyReq)
-		if err != nil {
-			log.Error().Err(err).Msg("Error forwarding request")
-			http.Error(w, "Error forwarding request", http.StatusBadGateway)
-			return
-		}
-		defer resp.Body.Close()
-
-		// Copy response headers
-		for header, values := range resp.Header {
-			for _, value := range values {
-				w.Header().Add(header, value)
-			}
-		}
-
-		// Set response status code
-		w.WriteHeader(resp.StatusCode)
-
-		// Copy response body
-		if _, err := io.Copy(w, resp.Body); err != nil {
-			log.Error().Err(err).Msg("Failed to copy response body")
-		}
-	})
-
-	// Start local proxy server
-	localAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, port)
-
-	log.Info().
-		Str("address", localAddr).
-		Str("device_id", deviceID).
-		Str("creator_address", creatorAddress).
-		Int("port", port).
-		Msg("Starting chain proxy server")
-
-	if err := http.ListenAndServe(localAddr, nil); err != nil {
+	// Create and start proxy server
+	server := proxy.NewServer(cfg, deviceID, creatorAddress, port)
+	if err := server.Start(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start chain proxy server")
 	}
 }
