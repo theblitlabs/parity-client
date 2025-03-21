@@ -41,6 +41,11 @@ INSTALL_PATH=/usr/local/bin
 
 all: clean build
 
+deps:
+	git submodule update --init --recursive
+	go mod tidy
+	go mod download
+
 build: ## Build the application
 	$(GOBUILD) $(BUILD_FLAGS) -o $(BINARY_NAME) ./cmd
 	chmod +x $(BINARY_NAME)
