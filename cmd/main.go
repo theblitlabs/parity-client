@@ -9,6 +9,7 @@ import (
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/cmd/cli"
 	"github.com/theblitlabs/parity-client/internal/commands"
+	"github.com/theblitlabs/parity-client/internal/config"
 )
 
 var logMode string
@@ -18,7 +19,12 @@ var rootCmd = &cobra.Command{
 	Short: "Parity Protocol CLI",
 	Long:  `A decentralized computing network powered by blockchain and secure enclaves`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.RunChain(3000)
+		cfg, err := config.LoadConfig("config/config.yaml")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+		cli.RunChain(cfg.Server.Port)
 	},
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		switch logMode {

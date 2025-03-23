@@ -12,7 +12,7 @@ type Config struct {
 
 type ServerConfig struct {
 	Host     string `mapstructure:"host"`
-	Port     string `mapstructure:"port"`
+	Port     int    `mapstructure:"port"`
 	Endpoint string `mapstructure:"endpoint"`
 }
 
