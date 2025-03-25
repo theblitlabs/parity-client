@@ -65,6 +65,11 @@ func (h *TaskHandler) processDockerImage(imageName string, taskData map[string]i
 		Str("image", imageName).
 		Msg("Processing Docker image request")
 
+	if err := h.docker.EnsureImageExists(imageName); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to ensure Docker image exists")
+		return
+	}
+
 	tarFile, err := h.docker.SaveImage(imageName)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to save Docker image")

@@ -165,3 +165,42 @@ func (s *DockerService) saveImageToTar(imageName, tarFileName string) error {
 
 	return nil
 }
+
+func (s *DockerService) EnsureImageExists(imageName string) error {
+	s.log.Info().
+		Str("image", imageName).
+		Msg("Checking if Docker image exists locally")
+
+	cmd := exec.Command("docker", "image", "inspect", imageName)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		s.log.Info().
+			Str("image", imageName).
+			Msg("Docker image not found locally, pulling from registry")
+
+		pullCmd := exec.Command("docker", "pull", imageName)
+		var pullStderr bytes.Buffer
+		pullCmd.Stderr = &pullStderr
+
+		if err := pullCmd.Run(); err != nil {
+			s.log.Error().
+				Err(err).
+				Str("image", imageName).
+				Str("stderr", pullStderr.String()).
+				Msg("Failed to pull Docker image")
+			return fmt.Errorf("failed to pull Docker image: %v, stderr: %s", err, pullStderr.String())
+		}
+
+		s.log.Info().
+			Str("image", imageName).
+			Msg("Successfully pulled Docker image")
+	} else {
+		s.log.Info().
+			Str("image", imageName).
+			Msg("Docker image already exists locally")
+	}
+
+	return nil
+}
