@@ -36,10 +36,6 @@ func (h *TaskHandler) ValidateAndProcessTask(w http.ResponseWriter, req *task.Re
 		return fmt.Errorf("title is required")
 	}
 
-	if len(req.Command) == 0 {
-		return fmt.Errorf("command is required")
-	}
-
 	taskData := map[string]interface{}{
 		"title":           req.Title,
 		"description":     req.Description,
