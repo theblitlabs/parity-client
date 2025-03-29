@@ -1,13 +1,38 @@
 # Parity Protocol
 
-Parity Protocol is a decentralized compute network where runners can execute compute tasks (e.g., running a Docker file) and earn incentives in the form of tokens. Task creators can add tasks to a pool, and the first runner to complete a task successfully receives a reward.
+Parity Protocol is a decentralized compute network that enables distributed task execution with blockchain-based incentives. The platform allows:
+
+- **Task Creators** to submit compute tasks to the network
+- **Runners** to execute tasks and earn token rewards
+- **Secure Execution** of Docker containers and compute workloads
+- **Decentralized Verification** of task completion
+- **Token-based Incentives** for participating in the network
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+  - [Setup and Running](#setup-and-running)
+  - [Adding Tasks](#adding-tasks)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
 
 ## Quick Start
 
 ### Prerequisites
 
+#### Software Requirements
+
 - Go 1.22.7 or higher (using Go toolchain 1.23.4)
 - Make
+- Docker (latest version recommended)
+- Git
 
 ### Installation
 
@@ -23,6 +48,27 @@ cd parity-client
 ```bash
 make deps
 ```
+
+3. Build the client:
+
+```bash
+make build
+```
+
+## Configuration
+
+The client can be configured using environment variables or a configuration file:
+
+Create a `.env` file in the project root:
+
+```bash
+PARITY_NODE_URL=http://localhost:8545
+PARITY_PRIVATE_KEY=your_private_key
+PARITY_LOG_LEVEL=info
+PARITY_MAX_TASKS=10
+```
+
+## Usage
 
 ### Setup and Running
 
@@ -46,7 +92,7 @@ parity-client
 
 ### Adding Tasks
 
-To add a new task to the network, you can use the following API endpoint:
+To add a new task to the network, use the REST API:
 
 ```bash
 curl -X POST http://localhost:3000/api/tasks \
@@ -59,7 +105,7 @@ curl -X POST http://localhost:3000/api/tasks \
   }'
 ```
 
-### Development
+## Development
 
 The project includes several helpful Makefile commands for development:
 
@@ -68,9 +114,9 @@ make deps          # Download dependencies
 make build         # Build the application
 make run           # Run the application
 make clean         # Clean build files
-make fmt           # Format code using gofumpt or gofmt
+make fmt          # Format code using gofumpt or gofmt
 make imports       # Fix imports formatting
-make format        # Run all formatters (gofumpt + goimports)
+make format       # Run all formatters (gofumpt + goimports)
 make lint         # Run linting
 make format-lint  # Format code and run linters in one step
 make watch        # Run with hot reload (requires air)
@@ -89,7 +135,27 @@ make install-air
 make watch
 ```
 
-### Contributing
+## Troubleshooting
+
+Common issues and solutions:
+
+1. **Connection Issues**
+
+   - Ensure your node URL is correct
+   - Check your internet connection
+   - Verify your firewall settings
+
+2. **Authentication Errors**
+
+   - Verify your private key is correct
+   - Ensure you have sufficient tokens for staking
+
+3. **Task Execution Failures**
+   - Check Docker is running and accessible
+   - Verify you have sufficient disk space
+   - Ensure required ports are not blocked
+
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -101,6 +167,13 @@ make watch
 5. Push to the branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
 
-### License
+Please ensure your PR:
+
+- Follows the existing code style
+- Includes appropriate tests
+- Updates documentation as needed
+- Describes the changes in detail
+
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
