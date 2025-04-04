@@ -32,7 +32,6 @@ Parity Protocol is a decentralized compute network that enables distributed task
 - Go 1.22.7 or higher (using Go toolchain 1.23.4)
 - Make
 - Docker (latest version recommended)
-- Git
 
 ### Installation
 
@@ -57,15 +56,34 @@ make build
 
 ## Configuration
 
-The client can be configured using environment variables or a configuration file:
+The client can be configured using a YAML configuration file:
 
-Create a `.env` file in the project root:
+### YAML Configuration
+
+1. Copy the example configuration file:
 
 ```bash
-PARITY_NODE_URL=http://localhost:8545
-PARITY_PRIVATE_KEY=your_private_key
-PARITY_LOG_LEVEL=info
-PARITY_MAX_TASKS=10
+cp config/config.example.yaml config/config.yaml
+```
+
+2. Edit `config/config.yaml` with your settings:
+
+```yaml
+server:
+  port: 3000 # Server port
+  host: localhost # Server host
+  endpoint: /api # API endpoint prefix
+
+ethereum:
+  rpc: http://localhost:8545 # Ethereum RPC endpoint
+  chain_id: 1 # Chain ID
+  token_address: "0x..." # Parity token contract address
+  stake_wallet_address: "0x..." # Staking wallet address
+
+runner:
+  server_url: http://localhost:3000 # Runner server URL
+  webhook_port: 8080 # Webhook port
+  api_prefix: /api # API prefix
 ```
 
 ## Usage
