@@ -1,15 +1,15 @@
 package task
 
-import "github.com/theblitlabs/parity-client/internal/docker"
+import "github.com/theblitlabs/parity-client/internal/docker/service"
 
 type Config struct {
-	Command []string      `json:"command"`
-	Config  docker.Config `json:"config,omitempty"`
+	Command []string       `json:"command"`
+	Config  service.Config `json:"config,omitempty"`
 }
 
 type Environment struct {
-	Type   string        `json:"type"`
-	Config docker.Config `json:"config"`
+	Type   string         `json:"type"`
+	Config service.Config `json:"config"`
 }
 
 type Request struct {
