@@ -204,3 +204,56 @@ func (s *DockerService) EnsureImageExists(imageName string) error {
 
 	return nil
 }
+
+func (s *DockerService) UploadTask(taskData map[string]interface{}, serverURL string) error {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	jsonPart, err := writer.CreateFormField("task")
+	if err != nil {
+		return fmt.Errorf("failed to create form field: %v", err)
+	}
+
+	if err := json.NewEncoder(jsonPart).Encode(taskData); err != nil {
+		return fmt.Errorf("failed to encode task request: %v", err)
+	}
+
+	writer.Close()
+
+	s.log.Debug().
+		Str("contentType", writer.FormDataContentType()).
+		Int("bodySize", body.Len()).
+		Msg("Prepared task request")
+
+	req, err := http.NewRequest("POST", serverURL, body)
+	if err != nil {
+		return fmt.Errorf("failed to create server request: %v", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	deviceID, ok := taskData["device_id"].(string)
+	if ok {
+		req.Header.Set("X-Device-ID", deviceID)
+	}
+	creatorAddr, ok := taskData["creator_address"].(string)
+	if ok {
+		req.Header.Set("X-Creator-Address", creatorAddr)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request to server: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read error response from server: %v", err)
+		}
+		return fmt.Errorf("server returned error: status=%d, response=%s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}

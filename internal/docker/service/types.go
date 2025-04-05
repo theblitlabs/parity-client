@@ -1,4 +1,4 @@
-package docker
+package service
 
 type Config struct {
 	Image   string   `json:"image"`

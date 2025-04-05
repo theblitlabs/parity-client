@@ -45,40 +45,30 @@ func (h *TaskHandler) ValidateAndProcessTask(w http.ResponseWriter, req *task.Re
 		"creator_address": h.creatorAddr,
 	}
 
-	if err := types.WriteJSON(w, http.StatusAccepted, taskData); err != nil {
-		return fmt.Errorf("failed to write response: %v", err)
+	if req.Image == "" {
+		return fmt.Errorf("image is required")
 	}
 
-	if req.Image != "" {
-		go h.processDockerImage(req.Image, taskData)
-	}
-
-	return nil
-}
-
-func (h *TaskHandler) processDockerImage(imageName string, taskData map[string]interface{}) {
 	h.logger.Info().
-		Str("image", imageName).
+		Str("image", req.Image).
 		Msg("Processing Docker image request")
 
-	if err := h.docker.EnsureImageExists(imageName); err != nil {
-		h.logger.Error().Err(err).Msg("Failed to ensure Docker image exists")
-		return
+	if err := h.docker.EnsureImageExists(req.Image); err != nil {
+		return fmt.Errorf("failed to ensure Docker image exists: %v", err)
 	}
 
-	tarFile, err := h.docker.SaveImage(imageName)
+	tarFile, err := h.docker.SaveImage(req.Image)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to save Docker image")
-		return
+		return fmt.Errorf("failed to save Docker image: %v", err)
 	}
 
 	uploadURL := fmt.Sprintf("%s/tasks", strings.TrimSuffix(h.config.Runner.ServerURL, "/"))
 	h.logger.Debug().Str("uploadURL", uploadURL).Msg("Uploading Docker image")
 
 	if err := h.docker.UploadImage(tarFile, taskData, uploadURL); err != nil {
-		h.logger.Error().Err(err).Msg("Failed to upload Docker image")
-		return
+		return fmt.Errorf("failed to upload Docker image: %v", err)
 	}
 
 	h.logger.Info().Msg("Successfully processed and uploaded Docker image")
+	return types.WriteJSON(w, http.StatusCreated, taskData)
 }
