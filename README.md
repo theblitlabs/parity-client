@@ -56,34 +56,38 @@ make build
 
 ## Configuration
 
-The client can be configured using a YAML configuration file:
+The client is configured using environment variables through a `.env` file:
 
-### YAML Configuration
-
-1. Copy the example configuration file:
+1. Copy the example environment file:
 
 ```bash
-cp config/config.example.yaml config/config.yaml
+cp .env.sample .env
 ```
 
-2. Edit `config/config.yaml` with your settings:
+2. Edit `.env` with your settings:
 
-```yaml
-server:
-  port: 3000 # Server port
-  host: localhost # Server host
-  endpoint: /api # API endpoint prefix
+```bash
+# Runner config
+RUNNER_WEBHOOK_PORT=8090
+RUNNER_API_PREFIX="/api"
+RUNNER_SERVER_URL="http://localhost:8080/api"
 
-ethereum:
-  rpc: http://localhost:8545 # Ethereum RPC endpoint
-  chain_id: 1 # Chain ID
-  token_address: "0x..." # Parity token contract address
-  stake_wallet_address: "0x..." # Staking wallet address
+# Server config
+SERVER_HOST="0.0.0.0"
+SERVER_PORT=3000
+SERVER_ENDPOINT="/api"
 
-runner:
-  server_url: http://localhost:3000 # Runner server URL
-  webhook_port: 8080 # Webhook port
-  api_prefix: /api # API prefix
+# Ethereum config
+ETHEREUM_TOKEN_ADDRESS="0x..."
+ETHEREUM_STAKE_WALLET_ADDRESS="0x..."
+ETHEREUM_CHAIN_ID=11155111
+ETHEREUM_RPC="https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"
+```
+
+You can also specify a custom config path using the `--config-path` flag:
+
+```bash
+parity-client --config-path /path/to/custom.env
 ```
 
 ## Usage
@@ -157,18 +161,24 @@ make watch
 
 Common issues and solutions:
 
-1. **Connection Issues**
+1. **Configuration Issues**
 
-   - Ensure your node URL is correct
+   - Ensure your `.env` file exists and is properly configured
+   - Check that all required environment variables are set
+   - Verify the config path if using `--config-path`
+
+2. **Connection Issues**
+
+   - Ensure your Ethereum RPC URL is correct and accessible
    - Check your internet connection
    - Verify your firewall settings
 
-2. **Authentication Errors**
+3. **Authentication Errors**
 
    - Verify your private key is correct
    - Ensure you have sufficient tokens for staking
 
-3. **Task Execution Failures**
+4. **Task Execution Failures**
    - Check Docker is running and accessible
    - Verify you have sufficient disk space
    - Ensure required ports are not blocked
