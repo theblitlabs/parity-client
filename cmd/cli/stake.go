@@ -30,10 +30,11 @@ func RunStake() {
 		Use:   "stake",
 		Short: "Stake tokens in the network",
 		Run: func(cmd *cobra.Command, args []string) {
+			configPath, _ := cmd.Flags().GetString("config-path")
 			log.Info().
 				Float64("amount", amount).
 				Msg("Processing stake request")
-			executeStake(amount)
+			executeStake(amount, configPath)
 		},
 	}
 
@@ -49,14 +50,15 @@ func RunStake() {
 	}
 }
 
-func executeStake(amount float64) {
+func executeStake(amount float64, configPath string) {
 	log := gologger.Get().With().Str("component", "stake").Logger()
 
-	cfg, err := config.LoadConfig("config/config.yaml")
+	configManager := config.NewConfigManager(configPath)
+	cfg, err := configManager.GetConfig()
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Msg("Failed to load configuration - please ensure config.yaml exists")
+			Msg("Failed to load configuration - please ensure config file exists")
 		return
 	}
 
