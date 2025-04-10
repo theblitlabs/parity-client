@@ -46,7 +46,7 @@ sensitive_found=false
 # Only check files that are actually being committed (respects .gitignore)
 for file in $STAGED_FILES; do
   for pattern in "${sensitive_patterns[@]}"; do
-    if [[ "$file" == *$pattern* ]]; then
+    if [[ "$file" == *$pattern ]]; then
       echo "Error: Potentially sensitive file found: $file"
       sensitive_found=true
     fi
