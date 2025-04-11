@@ -21,7 +21,8 @@ func RunAuth() {
 		Use:   "auth",
 		Short: "Authenticate with the network",
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := ExecuteAuth(privateKey, "config/config.yaml"); err != nil {
+			configPath, _ := cmd.Flags().GetString("config-path")
+			if err := ExecuteAuth(privateKey, configPath); err != nil {
 				log.Fatal().Err(err).Msg("Failed to authenticate")
 			}
 		},
@@ -44,7 +45,8 @@ func ExecuteAuth(privateKey string, configPath string) error {
 		return fmt.Errorf("private key is required")
 	}
 
-	cfg, err := config.LoadConfig(configPath)
+	configManager := config.NewConfigManager(configPath)
+	cfg, err := configManager.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/spf13/cobra"
 	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
@@ -63,14 +64,16 @@ func getCreatorAddress() (string, error) {
 	return address.Hex(), nil
 }
 
-func RunChain(port int) {
+func RunChain(port int, cmd *cobra.Command) {
 	log := gologger.Get().With().Str("component", "chain").Logger()
 
 	if err := client.IsPortAvailable(port); err != nil {
 		log.Fatal().Err(err).Int("port", port).Msg("Port is not available")
 	}
 
-	cfg, err := config.LoadConfig("config/config.yaml")
+	configPath, _ := cmd.Flags().GetString("config-path")
+	configManager := config.NewConfigManager(configPath)
+	cfg, err := configManager.GetConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load config")
 	}

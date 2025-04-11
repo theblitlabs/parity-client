@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/spf13/cobra"
 	"github.com/theblitlabs/deviceid"
 	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
@@ -15,12 +16,29 @@ import (
 )
 
 func RunBalance() {
+	cmd := &cobra.Command{
+		Use:   "balance",
+		Short: "Check wallet and stake balances",
+		Run: func(cmd *cobra.Command, args []string) {
+			configPath, _ := cmd.Flags().GetString("config-path")
+			executeBalance(configPath)
+		},
+	}
+
+	if err := cmd.Execute(); err != nil {
+		log := gologger.Get().With().Str("component", "balance").Logger()
+		log.Fatal().Err(err).Msg("Failed to execute balance command")
+	}
+}
+
+func executeBalance(configPath string) {
 	log := gologger.Get().With().Str("component", "balance").Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cfg, err := config.LoadConfig("config/config.yaml")
+	configManager := config.NewConfigManager(configPath)
+	cfg, err := configManager.GetConfig()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to load config")
 	}
