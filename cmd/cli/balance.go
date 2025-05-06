@@ -15,20 +15,9 @@ import (
 	"github.com/theblitlabs/parity-client/internal/config"
 )
 
-func RunBalance() {
-	cmd := &cobra.Command{
-		Use:   "balance",
-		Short: "Check wallet and stake balances",
-		Run: func(cmd *cobra.Command, args []string) {
-			configPath, _ := cmd.Flags().GetString("config-path")
-			executeBalance(configPath)
-		},
-	}
-
-	if err := cmd.Execute(); err != nil {
-		log := gologger.Get().With().Str("component", "balance").Logger()
-		log.Fatal().Err(err).Msg("Failed to execute balance command")
-	}
+func RunBalance(cmd *cobra.Command, args []string) {
+	configPath, _ := cmd.Flags().GetString("config-path")
+	executeBalance(configPath)
 }
 
 func executeBalance(configPath string) {

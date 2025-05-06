@@ -10,12 +10,12 @@ var stakeCmd = &cobra.Command{
 	Use:   "stake",
 	Short: "Stake tokens in the network",
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.RunStake()
+		cli.RunStake(cmd, args)
 	},
 }
 
 func init() {
-	stakeCmd.Flags().Float64("amount", 1.0, "Amount of PRTY tokens to stake")
+	stakeCmd.Flags().Float64P("amount", "a", 1.0, "Amount of PRTY tokens to stake")
 	if err := stakeCmd.MarkFlagRequired("amount"); err != nil {
 		log.Error().Err(err).Msg("Failed to mark amount flag as required")
 	}

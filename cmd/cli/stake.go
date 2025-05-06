@@ -20,34 +20,17 @@ import (
 	"github.com/theblitlabs/parity-client/internal/utils"
 )
 
-func RunStake() {
-	var amount float64
-
+func RunStake(cmd *cobra.Command, args []string) {
 	log := gologger.Get().With().Str("component", "stake").Logger()
-	log.Info().Msg("Starting staking process...")
 
-	cmd := &cobra.Command{
-		Use:   "stake",
-		Short: "Stake tokens in the network",
-		Run: func(cmd *cobra.Command, args []string) {
-			configPath, _ := cmd.Flags().GetString("config-path")
-			log.Info().
-				Float64("amount", amount).
-				Msg("Processing stake request")
-			executeStake(amount, configPath)
-		},
-	}
+	amount, _ := cmd.Flags().GetFloat64("amount")
+	configPath, _ := cmd.Flags().GetString("config-path")
 
-	cmd.Flags().Float64VarP(&amount, "amount", "a", 1.0, "Amount of PRTY tokens to stake")
-	if err := cmd.MarkFlagRequired("amount"); err != nil {
-		log.Error().Err(err).Msg("Failed to mark amount flag as required")
-	}
+	log.Info().
+		Float64("amount", amount).
+		Msg("Processing stake request")
 
-	if err := cmd.Execute(); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("Failed to execute stake command - please check your input")
-	}
+	executeStake(amount, configPath)
 }
 
 func executeStake(amount float64, configPath string) {
