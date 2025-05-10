@@ -14,27 +14,14 @@ import (
 	"github.com/theblitlabs/parity-client/internal/config"
 )
 
-func RunAuth() {
-	var privateKey string
+func RunAuth(cmd *cobra.Command, args []string) {
+	log := log.With().Str("component", "auth").Logger()
 
-	cmd := &cobra.Command{
-		Use:   "auth",
-		Short: "Authenticate with the network",
-		Run: func(cmd *cobra.Command, args []string) {
-			configPath, _ := cmd.Flags().GetString("config-path")
-			if err := ExecuteAuth(privateKey, configPath); err != nil {
-				log.Fatal().Err(err).Msg("Failed to authenticate")
-			}
-		},
-	}
+	privateKey, _ := cmd.Flags().GetString("private-key")
+	configPath, _ := cmd.Flags().GetString("config-path")
 
-	cmd.Flags().StringVarP(&privateKey, "private-key", "k", "", "Private key in hex format")
-	if err := cmd.MarkFlagRequired("private-key"); err != nil {
-		log.Fatal().Err(err).Msg("Failed to mark flag as required")
-	}
-
-	if err := cmd.Execute(); err != nil {
-		log.Fatal().Err(err).Msg("Failed to execute auth command")
+	if err := ExecuteAuth(privateKey, configPath); err != nil {
+		log.Fatal().Err(err).Msg("Failed to authenticate")
 	}
 }
 

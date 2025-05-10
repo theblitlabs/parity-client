@@ -9,6 +9,6 @@ var balanceCmd = &cobra.Command{
 	Use:   "balance",
 	Short: "Check token balances and stake status",
 	Run: func(cmd *cobra.Command, args []string) {
-		cli.RunBalance()
+		cli.RunBalance(cmd, args)
 	},
 }
