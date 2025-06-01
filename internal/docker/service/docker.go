@@ -14,6 +14,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/theblitlabs/gologger"
+	"github.com/theblitlabs/parity-client/internal/utils"
 )
 
 type DockerService struct {
@@ -65,6 +66,24 @@ func (s *DockerService) SaveImage(imageName string) (string, error) {
 }
 
 func (s *DockerService) UploadImage(tarFile string, taskData map[string]interface{}, serverURL string) error {
+	// Compute image hash before uploading
+	if imageName, ok := taskData["image"].(string); ok {
+		imageHash, err := utils.ComputeImageHash(imageName)
+		if err != nil {
+			s.log.Error().Err(err).Str("image", imageName).Msg("Failed to compute image hash")
+			return fmt.Errorf("failed to compute image hash: %w", err)
+		}
+		taskData["image_hash"] = imageHash
+		s.log.Info().Str("image", imageName).Str("hash", imageHash).Msg("Computed image hash")
+	}
+
+	// Compute command hash if command exists
+	if command, ok := taskData["command"].([]string); ok {
+		commandHash := utils.ComputeCommandHash(command)
+		taskData["command_hash"] = commandHash
+		s.log.Info().Strs("command", command).Str("hash", commandHash).Msg("Computed command hash")
+	}
+
 	defer func() {
 		s.log.Debug().
 			Str("tarFile", tarFile).

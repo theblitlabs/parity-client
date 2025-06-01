@@ -17,4 +17,6 @@ type Request struct {
 	Description string   `json:"description"`
 	Image       string   `json:"image"`
 	Command     []string `json:"command"`
+	ImageHash   string   `json:"image_hash"`
+	CommandHash string   `json:"command_hash"`
 }
