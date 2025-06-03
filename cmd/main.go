@@ -10,6 +10,7 @@ import (
 	"github.com/theblitlabs/parity-client/cmd/cli"
 	"github.com/theblitlabs/parity-client/internal/commands"
 	"github.com/theblitlabs/parity-client/internal/config"
+	"github.com/theblitlabs/parity-client/internal/utils"
 )
 
 var (
@@ -38,14 +39,14 @@ var rootCmd = &cobra.Command{
 			gologger.InitWithMode(gologger.LogModePretty)
 		}
 		if configPath == "" {
-			configPath = ".env"
+			configPath = utils.GetDefaultConfigPath()
 		}
 	},
 }
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&logMode, "log", "pretty", "Log mode: debug, pretty, info, prod, test")
-	rootCmd.PersistentFlags().StringVar(&configPath, "config-path", "", "Path to config file (default: .env)")
+	rootCmd.PersistentFlags().StringVar(&configPath, "config-path", "", "Path to config file (default: ~/.parity/.env or ./.env)")
 
 	commands.AddCommands(rootCmd)
 }
