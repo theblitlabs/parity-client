@@ -145,8 +145,20 @@ install: build ## Install parity command globally
 	@echo "Setting up parity config directory..."
 	@mkdir -p $(PARITY_CONFIG_DIR)
 	@if [ -f .env ]; then \
-		cp .env $(PARITY_CONFIG_DIR)/.env; \
-		echo "Config file copied to $(PARITY_CONFIG_DIR)/.env"; \
+		if [ -f $(PARITY_CONFIG_DIR)/.env ]; then \
+			echo "Config file already exists at $(PARITY_CONFIG_DIR)/.env"; \
+			read -p "Do you want to replace it? (Y/n): " -n 1 -r; \
+			echo; \
+			if [[ $$REPLY =~ ^[Yy]$$ ]] || [[ -z $$REPLY ]]; then \
+				cp .env $(PARITY_CONFIG_DIR)/.env; \
+				echo "Config file replaced at $(PARITY_CONFIG_DIR)/.env"; \
+			else \
+				echo "Keeping existing config file at $(PARITY_CONFIG_DIR)/.env"; \
+			fi; \
+		else \
+			cp .env $(PARITY_CONFIG_DIR)/.env; \
+			echo "Config file copied to $(PARITY_CONFIG_DIR)/.env"; \
+		fi; \
 	else \
 		echo "No .env file found to copy"; \
 	fi

@@ -107,6 +107,7 @@ This will:
 - Install the `parity-client` binary to `/usr/local/bin`
 - Create the `~/.parity` directory
 - Copy your current `.env` file to `~/.parity/.env`
+- If `~/.parity/.env` already exists, prompt you to confirm replacement (defaults to Yes)
 
 After installation, you can run `parity-client` from any directory and it will automatically use the config from `~/.parity/.env`.
 
