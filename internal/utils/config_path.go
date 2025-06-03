@@ -26,5 +26,5 @@ func GetDefaultConfigPath() string {
 
 func EnsureConfigDir() error {
 	configDir := GetParityConfigDir()
-	return os.MkdirAll(configDir, 0755)
+	return os.MkdirAll(configDir, 0o755)
 }
