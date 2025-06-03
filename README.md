@@ -56,7 +56,17 @@ make build
 
 ## Configuration
 
-The client is configured using environment variables through a `.env` file:
+The client is configured using environment variables through a `.env` file. The application supports multiple config file locations for development and production use.
+
+### Config File Locations
+
+The client looks for configuration files in the following order:
+
+1. **Production (after `make install`)**: `~/.parity/.env`
+2. **Development/Custom path**: Specified via `--config-path` flag
+3. **Local fallback**: `./.env` in the current directory
+
+### Initial Setup
 
 1. Copy the example environment file:
 
@@ -84,11 +94,39 @@ ETHEREUM_CHAIN_ID=11155111
 ETHEREUM_RPC="https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"
 ```
 
-You can also specify a custom config path using the `--config-path` flag:
+### Installing the Client
+
+To install the client globally and set up the production config:
+
+```bash
+make install
+```
+
+This will:
+
+- Install the `parity-client` binary to `/usr/local/bin`
+- Create the `~/.parity` directory
+- Copy your current `.env` file to `~/.parity/.env`
+
+After installation, you can run `parity-client` from any directory and it will automatically use the config from `~/.parity/.env`.
+
+### Custom Config Path
+
+You can specify a custom config path using the `--config-path` flag:
 
 ```bash
 parity-client --config-path /path/to/custom.env
 ```
+
+### Uninstalling
+
+To remove the client and clean up config files:
+
+```bash
+make uninstall
+```
+
+This removes both the binary and the `~/.parity` directory.
 
 ## Usage
 
@@ -164,6 +202,8 @@ Common issues and solutions:
 1. **Configuration Issues**
 
    - Ensure your `.env` file exists and is properly configured
+   - For development: Check `.env` in your project directory
+   - For installed client: Check `~/.parity/.env` or run `parity-client --help` to see current config path
    - Check that all required environment variables are set
    - Verify the config path if using `--config-path`
 
