@@ -37,6 +37,9 @@ BUILD_FLAGS=-v
 # Installation path
 INSTALL_PATH=/usr/local/bin
 
+# Parity config directory
+PARITY_CONFIG_DIR=$(HOME)/.parity
+
 .PHONY: all build test run clean deps fmt help docker-up docker-down docker-logs docker-build docker-clean install-air watch install uninstall install-lint-tools lint install-hooks format-lint check-format
 
 all: clean build
@@ -139,11 +142,21 @@ help: ## Display this help screen
 install: build ## Install parity command globally
 	@echo "Installing parity to $(INSTALL_PATH)..."
 	@sudo mv $(BINARY_NAME) $(INSTALL_PATH)/$(BINARY_NAME)
+	@echo "Setting up parity config directory..."
+	@mkdir -p $(PARITY_CONFIG_DIR)
+	@if [ -f .env ]; then \
+		cp .env $(PARITY_CONFIG_DIR)/.env; \
+		echo "Config file copied to $(PARITY_CONFIG_DIR)/.env"; \
+	else \
+		echo "No .env file found to copy"; \
+	fi
 	@echo "Installation complete"
 
 uninstall: ## Remove parity command from system
 	@echo "Uninstalling parity from $(INSTALL_PATH)..."
 	@sudo rm -f $(INSTALL_PATH)/$(BINARY_NAME)
+	@echo "Removing parity config directory..."
+	@rm -rf $(PARITY_CONFIG_DIR)
 	@echo "Uninstallation complete"
 
 install-lint-tools: ## Install formatting and linting tools
