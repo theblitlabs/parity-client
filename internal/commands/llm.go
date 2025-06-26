@@ -72,7 +72,7 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("failed to submit prompt: %w", err)
 		}
 
-		fmt.Printf("✅ Prompt submitted successfully\n")
+		fmt.Printf("Prompt submitted successfully\n")
 		fmt.Printf("ID: %s\n", response.ID)
 		fmt.Printf("Status: %s\n", response.Status)
 		fmt.Printf("Model: %s\n", response.ModelName)
@@ -80,14 +80,14 @@ var submitCmd = &cobra.Command{
 
 		if wait {
 			log.Info().Str("prompt_id", response.ID).Msg("Waiting for completion...")
-			fmt.Printf("\n⏳ Waiting for completion...\n")
+			fmt.Printf("\nWaiting for completion...\n")
 
 			completed, err := llmClient.WaitForCompletion(ctx, response.ID, 2*time.Second)
 			if err != nil {
 				return fmt.Errorf("failed while waiting for completion: %w", err)
 			}
 
-			fmt.Printf("\n🎉 Task completed!\n")
+			fmt.Printf("\nTask completed!\n")
 			fmt.Printf("Status: %s\n", completed.Status)
 			if completed.CompletedAt != nil {
 				fmt.Printf("Completed: %s\n", *completed.CompletedAt)
@@ -140,7 +140,7 @@ var listCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("📝 Found %d prompts:\n\n", len(prompts))
+		fmt.Printf("Found %d prompts:\n\n", len(prompts))
 		for i, p := range prompts {
 			fmt.Printf("%d. ID: %s\n", i+1, p.ID)
 			fmt.Printf("   Model: %s\n", p.ModelName)
@@ -193,7 +193,7 @@ var statusCmd = &cobra.Command{
 			return fmt.Errorf("failed to get prompt status: %w", err)
 		}
 
-		fmt.Printf("📋 Prompt Status\n\n")
+		fmt.Printf("Prompt Status\n\n")
 		fmt.Printf("ID: %s\n", prompt.ID)
 		fmt.Printf("Model: %s\n", prompt.ModelName)
 		fmt.Printf("Status: %s\n", prompt.Status)
@@ -246,7 +246,7 @@ var listModelsCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("🤖 Available Models (%d):\n\n", modelsResp.Count)
+		fmt.Printf("Available Models (%d):\n\n", modelsResp.Count)
 		for i, model := range modelsResp.Models {
 			fmt.Printf("%d. %s\n", i+1, model.ModelName)
 			if model.MaxTokens > 0 {

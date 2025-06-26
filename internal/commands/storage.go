@@ -83,16 +83,16 @@ var uploadFileCmd = &cobra.Command{
 			Str("url", fileUrl).
 			Msg("File uploaded successfully")
 
-		fmt.Printf("✅ File uploaded successfully!\n")
+		fmt.Printf("File uploaded successfully!\n")
 		if customName != "" {
 			fmt.Printf("Name: %s\n", customName)
 		}
 		fmt.Printf("CID: %s\n", cid)
 		fmt.Printf("URL: %s\n", fileUrl)
 		if shouldPin {
-			fmt.Printf("📌 File pinned to IPFS\n")
+			fmt.Printf("File pinned to IPFS\n")
 		}
-		fmt.Printf("\n💡 Use this CID when creating federated learning sessions:\n")
+		fmt.Printf("\nUse this CID when creating federated learning sessions:\n")
 		fmt.Printf("parity-client fl create-session --dataset-cid %s [other options]\n", cid)
 	},
 }
@@ -151,13 +151,13 @@ var uploadDirectoryCmd = &cobra.Command{
 			Str("url", dirUrl).
 			Msg("Directory uploaded successfully")
 
-		fmt.Printf("✅ Directory uploaded successfully!\n")
+		fmt.Printf("Directory uploaded successfully!\n")
 		if shouldCompress {
-			fmt.Printf("🗜️ Directory was compressed before upload\n")
+			fmt.Printf("Directory was compressed before upload\n")
 		}
 		fmt.Printf("CID: %s\n", cid)
 		fmt.Printf("URL: %s\n", dirUrl)
-		fmt.Printf("\n💡 Use this CID when creating federated learning sessions:\n")
+		fmt.Printf("\nUse this CID when creating federated learning sessions:\n")
 		fmt.Printf("parity-client fl create-session --dataset-cid %s [other options]\n", cid)
 	},
 }
@@ -207,7 +207,7 @@ var downloadFileCmd = &cobra.Command{
 			Str("output", outputPath).
 			Msg("File downloaded successfully")
 
-		fmt.Printf("✅ File downloaded successfully to: %s\n", outputPath)
+		fmt.Printf("File downloaded successfully to: %s\n", outputPath)
 	},
 }
 
@@ -239,7 +239,7 @@ var fileInfoCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to get file info")
 		}
 
-		fmt.Printf("📄 File Information\n")
+		fmt.Printf("File Information\n")
 		fmt.Printf("CID: %s\n", cid)
 		fmt.Printf("Size: %d bytes\n", info.CumulativeSize)
 		fmt.Printf("Blocks: %d\n", info.NumLinks)
@@ -275,7 +275,7 @@ var pinFileCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to pin file")
 		}
 
-		fmt.Printf("📌 File pinned successfully: %s\n", cid)
+		fmt.Printf("File pinned successfully: %s\n", cid)
 	},
 }
 
@@ -307,7 +307,7 @@ var unpinFileCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to unpin file")
 		}
 
-		fmt.Printf("📌 File unpinned successfully: %s\n", cid)
+		fmt.Printf("File unpinned successfully: %s\n", cid)
 	},
 }
 

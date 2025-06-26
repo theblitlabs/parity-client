@@ -87,9 +87,9 @@ var createSessionCmd = &cobra.Command{
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
 				json.Unmarshal(data, &modelConfig)
-				fmt.Printf("📋 Custom model config loaded from: %s\n", configFile)
+				fmt.Printf("Custom model config loaded from: %s\n", configFile)
 			} else {
-				fmt.Printf("⚠️  Failed to load custom config from %s, using defaults\n", configFile)
+				fmt.Printf("Failed to load custom config from %s, using defaults\n", configFile)
 			}
 		}
 
@@ -100,7 +100,7 @@ var createSessionCmd = &cobra.Command{
 				"noise_multiplier": noiseMultiplier,
 				"l2_norm_clip":     l2NormClip,
 			}
-			fmt.Printf("🔒 Differential privacy enabled (noise: %.2f, clip: %.2f)\n", noiseMultiplier, l2NormClip)
+			fmt.Printf("Differential privacy enabled (noise: %.2f, clip: %.2f)\n", noiseMultiplier, l2NormClip)
 		}
 
 		req := &client.CreateFLSessionRequest{
@@ -287,7 +287,7 @@ var getModelCmd = &cobra.Command{
 			if err := saveModelToFile(model, outputFile, format); err != nil {
 				return err
 			}
-			fmt.Printf("✅ Trained model saved to: %s\n", outputFile)
+			fmt.Printf("Trained model saved to: %s\n", outputFile)
 		} else {
 			printModelDetails(model, sessionID)
 		}
@@ -560,7 +560,7 @@ func createFLClient(cfg *config.Config) (*client.FederatedLearningClient, error)
 }
 
 func printSessionCreated(session *client.FLSession) {
-	fmt.Printf("✅ Federated Learning Session Created\n\n")
+	fmt.Printf("Federated Learning Session Created\n\n")
 	fmt.Printf("Session ID:      %s\n", session.ID)
 	fmt.Printf("Name:            %s\n", session.Name)
 	fmt.Printf("Description:     %s\n", session.Description)
@@ -578,7 +578,7 @@ func printSessionsList(response *client.ListSessionsResponse) {
 		return
 	}
 
-	fmt.Printf("🔍 Federated Learning Sessions (%d):\n\n", response.Count)
+	fmt.Printf("Federated Learning Sessions (%d):\n\n", response.Count)
 	for i, session := range response.Sessions {
 		fmt.Printf("%d. %s\n", i+1, session.Name)
 		fmt.Printf("   ID:              %s\n", session.ID)
@@ -596,7 +596,7 @@ func printSessionsList(response *client.ListSessionsResponse) {
 }
 
 func printSessionDetails(session *client.FLSession) {
-	fmt.Printf("📊 Federated Learning Session Details\n\n")
+	fmt.Printf("Federated Learning Session Details\n\n")
 	fmt.Printf("Session ID:       %s\n", session.ID)
 	fmt.Printf("Name:             %s\n", session.Name)
 	fmt.Printf("Description:      %s\n", session.Description)
@@ -613,7 +613,7 @@ func printSessionDetails(session *client.FLSession) {
 		fmt.Printf("Completed At:     %s\n", *session.CompletedAt)
 	}
 
-	fmt.Printf("\n🔧 Configuration:\n")
+	fmt.Printf("\nConfiguration:\n")
 	fmt.Printf("  Aggregation Method: %s\n", session.Config.AggregationMethod)
 	fmt.Printf("  Learning Rate:      %f\n", session.Config.LearningRate)
 	fmt.Printf("  Batch Size:         %d\n", session.Config.BatchSize)
@@ -622,13 +622,13 @@ func printSessionDetails(session *client.FLSession) {
 }
 
 func printSessionStarted(sessionID string) {
-	fmt.Printf("✅ Federated learning session started successfully\n")
+	fmt.Printf("Federated learning session started successfully\n")
 	fmt.Printf("Session ID: %s\n", sessionID)
 	fmt.Printf("Training rounds will begin automatically...\n")
 }
 
 func printModelDetails(model map[string]interface{}, sessionID string) {
-	fmt.Printf("📊 Trained Model for Session: %s\n\n", sessionID)
+	fmt.Printf("Trained Model for Session: %s\n\n", sessionID)
 	if sessionName, ok := model["session_name"].(string); ok {
 		fmt.Printf("Session Name:  %s\n", sessionName)
 	}
@@ -645,7 +645,7 @@ func printModelDetails(model map[string]interface{}, sessionID string) {
 		fmt.Printf("Completed At:  %s\n", completedAt)
 	}
 
-	fmt.Printf("\n🤖 Model Data:\n")
+	fmt.Printf("\nModel Data:\n")
 	modelData, err := json.MarshalIndent(model["model_data"], "", "  ")
 	if err != nil {
 		fmt.Printf("Error formatting model data: %v\n", err)
@@ -679,7 +679,7 @@ func saveModelToFile(model map[string]interface{}, outputFile, format string) er
 }
 
 func printUpdateSubmitted(req *client.SubmitModelUpdateRequest) {
-	fmt.Printf("✅ Model update submitted successfully\n")
+	fmt.Printf("Model update submitted successfully\n")
 	fmt.Printf("Session ID:    %s\n", req.SessionID)
 	fmt.Printf("Round ID:      %s\n", req.RoundID)
 	fmt.Printf("Runner ID:     %s\n", req.RunnerID)
@@ -689,16 +689,16 @@ func printUpdateSubmitted(req *client.SubmitModelUpdateRequest) {
 }
 
 func printSessionWithDataCreated(session *client.FLSession, cid, fileURL string) {
-	fmt.Printf("✅ Training data uploaded and federated learning session created successfully!\n\n")
-	fmt.Printf("📄 Data CID:      %s\n", cid)
-	fmt.Printf("📄 Data URL:      %s\n", fileURL)
-	fmt.Printf("🔧 Session ID:    %s\n", session.ID)
-	fmt.Printf("📝 Session Name:  %s\n", session.Name)
-	fmt.Printf("🤖 Model Type:    %s\n", session.ModelType)
-	fmt.Printf("🔄 Total Rounds:  %d\n", session.TotalRounds)
-	fmt.Printf("👥 Min Participants: %d\n", session.MinParticipants)
-	fmt.Printf("📊 Status:        %s\n", session.Status)
-	fmt.Printf("\n💡 Start the session when ready:\n")
+	fmt.Printf("Training data uploaded and federated learning session created successfully!\n\n")
+	fmt.Printf("Data CID:      %s\n", cid)
+	fmt.Printf("Data URL:      %s\n", fileURL)
+	fmt.Printf("Session ID:    %s\n", session.ID)
+	fmt.Printf("Session Name:  %s\n", session.Name)
+	fmt.Printf("Model Type:    %s\n", session.ModelType)
+	fmt.Printf("Total Rounds:  %d\n", session.TotalRounds)
+	fmt.Printf("Min Participants: %d\n", session.MinParticipants)
+	fmt.Printf("Status:        %s\n", session.Status)
+	fmt.Printf("\nStart the session when ready:\n")
 	fmt.Printf("parity-client fl start-session %s\n", session.ID)
 }
 
