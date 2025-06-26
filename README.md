@@ -94,21 +94,32 @@ cp .env.sample .env
 2. Edit `.env` with your settings:
 
 ```bash
-# Runner config
-RUNNER_WEBHOOK_PORT=8090
-RUNNER_API_PREFIX="/api"
-RUNNER_SERVER_URL="http://localhost:8080/api"
-
-# Server config
+# Server Configuration
 SERVER_HOST="0.0.0.0"
 SERVER_PORT=3000
 SERVER_ENDPOINT="/api"
 
-# Ethereum config
-ETHEREUM_TOKEN_ADDRESS="0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0"
-ETHEREUM_STAKE_WALLET_ADDRESS="0x7465e7a637f66cb7b294b856a25bc84abff1d247"
-ETHEREUM_CHAIN_ID=314159
-ETHEREUM_RPC="https://api.calibration.node.glif.io/rpc/v1"
+# Filecoin Network Configuration (Filecoin Calibration Testnet)
+FILECOIN_RPC=https://calibration.filfox.info/rpc/v1
+FILECOIN_CHAIN_ID=314159
+FILECOIN_TOKEN_ADDRESS=0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0
+FILECOIN_STAKE_WALLET_ADDRESS=0x1fd2fA91C1eE96d128A35955EC3B496D7184c80A
+
+# IPFS/Filecoin Storage Configuration
+FILECOIN_IPFS_ENDPOINT=http://localhost:5001
+FILECOIN_GATEWAY_URL=https://gateway.pinata.cloud
+FILECOIN_CREATE_STORAGE_DEALS=false
+
+# Runner Configuration
+RUNNER_SERVER_URL="http://localhost:8080"
+RUNNER_WEBHOOK_PORT=8082
+RUNNER_API_PREFIX="/api"
+
+# Federated Learning Configuration
+FL_SERVER_URL="http://localhost:8080"
+FL_DEFAULT_TIMEOUT=30s
+FL_RETRY_ATTEMPTS=3
+FL_LOG_LEVEL=info
 ```
 
 ### Installing the Client
@@ -260,7 +271,7 @@ Common issues and solutions:
 
 2. **Connection Issues**
 
-   - Ensure your Ethereum RPC URL is correct and accessible
+   - Ensure your Filecoin RPC URL is correct and accessible
    - Check your internet connection
    - Verify your firewall settings
 
