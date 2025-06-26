@@ -72,7 +72,7 @@ func (c *LLMClient) SubmitPrompt(ctx context.Context, prompt, modelName string) 
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/llm/prompts", c.serverURL)
+	url := fmt.Sprintf("%s/api/v1/llm/prompts", c.serverURL)
 	log.Info().Str("full_url", url).Msg("Making request to URL")
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -111,7 +111,7 @@ func (c *LLMClient) SubmitPrompt(ctx context.Context, prompt, modelName string) 
 }
 
 func (c *LLMClient) GetPrompt(ctx context.Context, promptID string) (*PromptResponse, error) {
-	url := fmt.Sprintf("%s/api/llm/prompts/%s", c.serverURL, promptID)
+	url := fmt.Sprintf("%s/api/v1/llm/prompts/%s", c.serverURL, promptID)
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -138,7 +138,7 @@ func (c *LLMClient) GetPrompt(ctx context.Context, promptID string) (*PromptResp
 }
 
 func (c *LLMClient) ListPrompts(ctx context.Context, limit, offset int) ([]*PromptResponse, error) {
-	url := fmt.Sprintf("%s/api/llm/prompts?limit=%d&offset=%d", c.serverURL, limit, offset)
+	url := fmt.Sprintf("%s/api/v1/llm/prompts?limit=%d&offset=%d", c.serverURL, limit, offset)
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -194,7 +194,7 @@ func (c *LLMClient) WaitForCompletion(ctx context.Context, promptID string, poll
 }
 
 func (c *LLMClient) GetBillingMetrics(ctx context.Context) (*BillingMetricsResponse, error) {
-	url := fmt.Sprintf("%s/api/llm/billing/metrics", c.serverURL)
+	url := fmt.Sprintf("%s/api/v1/llm/billing/metrics", c.serverURL)
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -221,7 +221,7 @@ func (c *LLMClient) GetBillingMetrics(ctx context.Context) (*BillingMetricsRespo
 }
 
 func (c *LLMClient) GetAvailableModels(ctx context.Context) (*ModelsResponse, error) {
-	url := fmt.Sprintf("%s/api/llm/models", c.serverURL)
+	url := fmt.Sprintf("%s/api/v1/llm/models", c.serverURL)
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

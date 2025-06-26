@@ -227,6 +227,63 @@ curl -X POST http://localhost:3000/api/tasks \
   }'
 ```
 
+## API Reference
+
+The parity-client interacts with various server endpoints. Below are the main API endpoints available:
+
+### LLM Endpoints
+
+| Method | Endpoint                | Description                        |
+| ------ | ----------------------- | ---------------------------------- |
+| GET    | `/api/llm/models`       | List all available LLM models      |
+| POST   | `/api/llm/prompts`      | Submit a prompt for LLM processing |
+| GET    | `/api/llm/prompts/{id}` | Get prompt status and response     |
+| GET    | `/api/llm/prompts`      | List recent prompts                |
+
+### Task Endpoints
+
+| Method | Endpoint               | Description      |
+| ------ | ---------------------- | ---------------- |
+| POST   | /api/tasks             | Create task      |
+| GET    | /api/tasks             | List all tasks   |
+| GET    | /api/tasks/{id}        | Get task details |
+| GET    | /api/tasks/{id}/status | Get task status  |
+| GET    | /api/tasks/{id}/logs   | Get task logs    |
+
+### Federated Learning Endpoints
+
+| Method | Endpoint                                       | Description          |
+| ------ | ---------------------------------------------- | -------------------- |
+| POST   | /api/v1/federated-learning/sessions            | Create FL session    |
+| GET    | /api/v1/federated-learning/sessions            | List FL sessions     |
+| GET    | /api/v1/federated-learning/sessions/{id}       | Get session details  |
+| POST   | /api/v1/federated-learning/sessions/{id}/start | Start FL session     |
+| GET    | /api/v1/federated-learning/sessions/{id}/model | Get trained model    |
+| POST   | /api/v1/federated-learning/model-updates       | Submit model updates |
+
+### Storage Endpoints
+
+| Method | Endpoint                    | Description                  |
+| ------ | --------------------------- | ---------------------------- |
+| POST   | /api/storage/upload         | Upload file to IPFS/Filecoin |
+| GET    | /api/storage/download/{cid} | Download file by CID         |
+| GET    | /api/storage/info/{cid}     | Get file information         |
+| POST   | /api/storage/pin/{cid}      | Pin file to IPFS             |
+
+### Runner Endpoints
+
+| Method | Endpoint               | Description     |
+| ------ | ---------------------- | --------------- |
+| POST   | /api/runners           | Register runner |
+| POST   | /api/runners/heartbeat | Send heartbeat  |
+
+### Health & Status Endpoints
+
+| Method | Endpoint    | Description   |
+| ------ | ----------- | ------------- |
+| GET    | /api/health | Health check  |
+| GET    | /api/status | System status |
+
 ## Development
 
 The project includes several helpful Makefile commands for development:
