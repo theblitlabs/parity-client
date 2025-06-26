@@ -62,17 +62,17 @@ func executeStake(amount float64, configPath string) {
 	}
 
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
-		RPCURL:       cfg.Ethereum.RPC,
-		ChainID:      cfg.Ethereum.ChainID,
+		RPCURL:       cfg.FilecoinNetwork.RPC,
+		ChainID:      cfg.FilecoinNetwork.ChainID,
 		PrivateKey:   common.Bytes2Hex(crypto.FromECDSA(privateKey)),
-		TokenAddress: common.HexToAddress(cfg.Ethereum.TokenAddress),
-		StakeAddress: common.HexToAddress(cfg.Ethereum.StakeWalletAddress),
+		TokenAddress: common.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+		StakeAddress: common.HexToAddress(cfg.FilecoinNetwork.StakeWalletAddress),
 	})
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Str("rpc_endpoint", cfg.Ethereum.RPC).
-			Int64("chain_id", cfg.Ethereum.ChainID).
+			Str("rpc_endpoint", cfg.FilecoinNetwork.RPC).
+			Int64("chain_id", cfg.FilecoinNetwork.ChainID).
 			Msg("Failed to connect to blockchain - please check your network connection")
 		return
 	}
@@ -91,8 +91,8 @@ func executeStake(amount float64, configPath string) {
 		Str("wallet", walletAdapter.GetAddress().Hex()).
 		Msg("Device verified successfully")
 
-	tokenAddr := common.HexToAddress(cfg.Ethereum.TokenAddress)
-	stakeWalletAddr := common.HexToAddress(cfg.Ethereum.StakeWalletAddress)
+	tokenAddr := common.HexToAddress(cfg.FilecoinNetwork.TokenAddress)
+	stakeWalletAddr := common.HexToAddress(cfg.FilecoinNetwork.StakeWalletAddress)
 
 	token, err := walletAdapter.NewParityToken(tokenAddr)
 	if err != nil {

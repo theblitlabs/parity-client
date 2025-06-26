@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `mapstructure:"SERVER"`
-	Ethereum EthereumConfig `mapstructure:"ETHEREUM"`
-	Runner   RunnerConfig   `mapstructure:"RUNNER"`
+	Server          ServerConfig          `mapstructure:"SERVER"`
+	FilecoinNetwork FilecoinNetworkConfig `mapstructure:"FILECOIN_NETWORK"`
+	Runner          RunnerConfig          `mapstructure:"RUNNER"`
 }
 
 type ServerConfig struct {
@@ -20,7 +20,7 @@ type ServerConfig struct {
 	Endpoint string `mapstructure:"ENDPOINT"`
 }
 
-type EthereumConfig struct {
+type FilecoinNetworkConfig struct {
 	RPC                string `mapstructure:"RPC"`
 	ChainID            int64  `mapstructure:"CHAIN_ID"`
 	TokenAddress       string `mapstructure:"TOKEN_ADDRESS"`
@@ -90,11 +90,11 @@ func loadConfigFile(path string) (*Config, error) {
 		"ENDPOINT": v.GetString("SERVER_ENDPOINT"),
 	})
 
-	v.SetDefault("ETHEREUM", map[string]interface{}{
-		"RPC":                  v.GetString("ETHEREUM_RPC"),
-		"CHAIN_ID":             v.GetInt64("ETHEREUM_CHAIN_ID"),
-		"TOKEN_ADDRESS":        v.GetString("ETHEREUM_TOKEN_ADDRESS"),
-		"STAKE_WALLET_ADDRESS": v.GetString("ETHEREUM_STAKE_WALLET_ADDRESS"),
+	v.SetDefault("FILECOIN_NETWORK", map[string]interface{}{
+		"RPC":                  v.GetString("FILECOIN_RPC"),
+		"CHAIN_ID":             v.GetInt64("FILECOIN_CHAIN_ID"),
+		"TOKEN_ADDRESS":        v.GetString("FILECOIN_TOKEN_ADDRESS"),
+		"STAKE_WALLET_ADDRESS": v.GetString("FILECOIN_STAKE_WALLET_ADDRESS"),
 	})
 
 	v.SetDefault("RUNNER", map[string]interface{}{
