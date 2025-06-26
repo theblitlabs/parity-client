@@ -1,12 +1,29 @@
-# Parity Protocol
+# Parity Client
 
-Parity Protocol is a decentralized compute network that enables distributed task execution with blockchain-based incentives. The platform allows:
+The command-line interface for the PLGenesis decentralized AI and compute network. Parity Client provides an intuitive way to interact with the network, submit tasks, execute LLM inference, and manage your account.
 
-- **Task Creators** to submit compute tasks to the network
-- **Runners** to execute tasks and earn token rewards
-- **Secure Execution** of Docker containers and compute workloads
-- **Decentralized Verification** of task completion
-- **Token-based Incentives** for participating in the network
+## 🚀 Features
+
+### 🤖 LLM Interaction
+
+- **Model Discovery**: List all available LLM models across the network
+- **Prompt Submission**: Submit prompts for processing with real-time status tracking
+- **Async Processing**: Non-blocking prompt submission with optional wait functionality
+- **Response Retrieval**: Get completed responses with comprehensive metadata
+
+### ⚡ Task Management
+
+- **Task Submission**: Submit compute tasks to the network
+- **Status Monitoring**: Real-time tracking of task progress and completion
+- **Result Retrieval**: Get task outputs and execution logs
+- **Batch Operations**: Submit multiple tasks efficiently
+
+### 🔒 Account Management
+
+- **Authentication**: Secure authentication with private keys
+- **Staking**: Stake tokens to participate as a runner
+- **Balance Checking**: Monitor token balances and staking status
+- **Transaction History**: View account activity and earnings
 
 ## Table of Contents
 
@@ -88,10 +105,10 @@ SERVER_PORT=3000
 SERVER_ENDPOINT="/api"
 
 # Ethereum config
-ETHEREUM_TOKEN_ADDRESS="0x..."
-ETHEREUM_STAKE_WALLET_ADDRESS="0x..."
-ETHEREUM_CHAIN_ID=11155111
-ETHEREUM_RPC="https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"
+ETHEREUM_TOKEN_ADDRESS="0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0"
+ETHEREUM_STAKE_WALLET_ADDRESS="0x7465e7a637f66cb7b294b856a25bc84abff1d247"
+ETHEREUM_CHAIN_ID=314159
+ETHEREUM_RPC="https://api.calibration.node.glif.io/rpc/v1"
 ```
 
 ### Installing the Client
@@ -151,9 +168,42 @@ parity-client stake --amount 10
 parity-client
 ```
 
+### LLM Operations
+
+#### List Available Models
+
+See which LLM models are currently available:
+
+```bash
+parity-client llm list-models
+```
+
+#### Submit LLM Prompts
+
+Submit a prompt for processing:
+
+```bash
+# Submit and wait for completion
+parity-client llm submit --model "qwen3:latest" --prompt "Explain quantum computing" --wait
+
+# Submit without waiting (async)
+parity-client llm submit --model "llama2:7b" --prompt "Write a Python function to sort a list"
+
+# Check status later
+parity-client llm status <prompt-id>
+```
+
+#### List Recent Prompts
+
+View your recent LLM prompts:
+
+```bash
+parity-client llm list --limit 10
+```
+
 ### Adding Tasks
 
-To add a new task to the network, use the REST API:
+To add a new compute task to the network, use the REST API:
 
 ```bash
 curl -X POST http://localhost:3000/api/tasks \
