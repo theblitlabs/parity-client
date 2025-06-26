@@ -1,9 +1,14 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -93,77 +98,142 @@ func NewFederatedLearningClient(baseURL string) *FederatedLearningClient {
 }
 
 func (c *FederatedLearningClient) CreateSession(ctx context.Context, req *CreateFLSessionRequest) (*FLSession, error) {
-	// Mock implementation - replace with actual HTTP calls
-	session := &FLSession{
-		ID:               fmt.Sprintf("session-%d", time.Now().Unix()),
-		Name:             req.Name,
-		Description:      req.Description,
-		ModelType:        req.ModelType,
-		Status:           "created",
-		TotalRounds:      req.TotalRounds,
-		CurrentRound:     0,
-		MinParticipants:  req.MinParticipants,
-		ParticipantCount: 0,
-		CreatorAddress:   req.CreatorAddress,
-		CreatedAt:        time.Now().Format(time.RFC3339),
-		UpdatedAt:        time.Now().Format(time.RFC3339),
-		Config: FLConfig{
-			AggregationMethod: req.Config.AggregationMethod,
-			LearningRate:      req.Config.LearningRate,
-			BatchSize:         req.Config.BatchSize,
-			LocalEpochs:       req.Config.LocalEpochs,
-			ClientSelection:   req.Config.ClientSelection,
-			ModelConfig:       req.Config.ModelConfig,
-		},
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
 	}
-	return session, nil
+
+	baseURL := strings.TrimSuffix(c.baseURL, "/api")
+	resp, err := c.client.Post(baseURL+"/api/v1/federated-learning/sessions", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var session FLSession
+	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	return &session, nil
 }
 
 func (c *FederatedLearningClient) ListSessions(ctx context.Context, creator string) (*ListSessionsResponse, error) {
-	// Mock implementation
-	return &ListSessionsResponse{
-		Sessions: []FLSession{},
-		Count:    0,
-	}, nil
+	baseURL := strings.TrimSuffix(c.baseURL, "/api")
+	url := baseURL + "/api/v1/federated-learning/sessions"
+	if creator != "" {
+		url += "?creator=" + creator
+	}
+
+	resp, err := c.client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list sessions: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var response ListSessionsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	return &response, nil
 }
 
 func (c *FederatedLearningClient) GetSession(ctx context.Context, sessionID string) (*FLSession, error) {
-	// Mock implementation
-	session := &FLSession{
-		ID:               sessionID,
-		Name:             "Mock Session",
-		Description:      "Mock federated learning session",
-		ModelType:        "neural_network",
-		Status:           "created",
-		TotalRounds:      5,
-		CurrentRound:     0,
-		MinParticipants:  2,
-		ParticipantCount: 0,
-		CreatorAddress:   "0x0000000000000000000000000000000000000000",
-		CreatedAt:        time.Now().Format(time.RFC3339),
-		UpdatedAt:        time.Now().Format(time.RFC3339),
-		Config: FLConfig{
-			AggregationMethod: "federated_averaging",
-			LearningRate:      0.001,
-			BatchSize:         32,
-			LocalEpochs:       3,
-			ClientSelection:   "random",
-			ModelConfig: map[string]interface{}{
-				"input_size":  784,
-				"output_size": 10,
-				"hidden_size": 128,
-			},
-		},
+	baseURL := strings.TrimSuffix(c.baseURL, "/api")
+	resp, err := c.client.Get(baseURL + "/api/v1/federated-learning/sessions/" + sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %v", err)
 	}
-	return session, nil
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var session FLSession
+	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	return &session, nil
 }
 
 func (c *FederatedLearningClient) StartSession(ctx context.Context, sessionID string) error {
-	// Mock implementation
+	url := strings.TrimSuffix(c.baseURL, "/api")
+	resp, err := c.client.Post(url+"/api/v1/federated-learning/sessions/"+sessionID+"/start", "application/json", nil)
+	log.Println("baseURL", url+"/api/v1/federated-learning/sessions/"+sessionID+"/start")
+	if err != nil {
+		return fmt.Errorf("failed to start session: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
 }
 
 func (c *FederatedLearningClient) SubmitModelUpdate(ctx context.Context, req *SubmitModelUpdateRequest) error {
-	// Mock implementation
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	baseURL := strings.TrimSuffix(c.baseURL, "/api")
+	resp, err := c.client.Post(baseURL+"/api/v1/federated-learning/model-updates", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to submit model update: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
+}
+
+func (c *FederatedLearningClient) GetTrainedModel(ctx context.Context, sessionID string) (map[string]interface{}, error) {
+	baseURL := strings.TrimSuffix(c.baseURL, "/api")
+	resp, err := c.client.Get(baseURL + "/api/v1/federated-learning/sessions/" + sessionID + "/model")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trained model: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("model not found: %s", string(body))
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var model map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&model); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	return model, nil
 }

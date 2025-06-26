@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	Server          ServerConfig          `mapstructure:"SERVER"`
-	FilecoinNetwork FilecoinNetworkConfig `mapstructure:"FILECOIN_NETWORK"`
-	Runner          RunnerConfig          `mapstructure:"RUNNER"`
+	Server            ServerConfig            `mapstructure:"SERVER"`
+	FilecoinNetwork   FilecoinNetworkConfig   `mapstructure:"FILECOIN_NETWORK"`
+	Runner            RunnerConfig            `mapstructure:"RUNNER"`
+	FederatedLearning FederatedLearningConfig `mapstructure:"FL"`
 }
 
 type ServerConfig struct {
@@ -28,6 +29,13 @@ type FilecoinNetworkConfig struct {
 	IPFSEndpoint       string `mapstructure:"IPFS_ENDPOINT"`
 	GatewayURL         string `mapstructure:"GATEWAY_URL"`
 	CreateStorageDeals bool   `mapstructure:"CREATE_STORAGE_DEALS"`
+}
+
+type FederatedLearningConfig struct {
+	ServerURL      string `mapstructure:"SERVER_URL"`
+	DefaultTimeout string `mapstructure:"DEFAULT_TIMEOUT"`
+	RetryAttempts  int    `mapstructure:"RETRY_ATTEMPTS"`
+	LogLevel       string `mapstructure:"LOG_LEVEL"`
 }
 
 type RunnerConfig struct {
@@ -98,12 +106,22 @@ func loadConfigFile(path string) (*Config, error) {
 		"CHAIN_ID":             v.GetInt64("FILECOIN_CHAIN_ID"),
 		"TOKEN_ADDRESS":        v.GetString("FILECOIN_TOKEN_ADDRESS"),
 		"STAKE_WALLET_ADDRESS": v.GetString("FILECOIN_STAKE_WALLET_ADDRESS"),
+		"IPFS_ENDPOINT":        v.GetString("FILECOIN_IPFS_ENDPOINT"),
+		"GATEWAY_URL":          v.GetString("FILECOIN_GATEWAY_URL"),
+		"CREATE_STORAGE_DEALS": v.GetBool("FILECOIN_CREATE_STORAGE_DEALS"),
 	})
 
 	v.SetDefault("RUNNER", map[string]interface{}{
 		"SERVER_URL":   v.GetString("RUNNER_SERVER_URL"),
 		"WEBHOOK_PORT": v.GetInt("RUNNER_WEBHOOK_PORT"),
 		"API_PREFIX":   v.GetString("RUNNER_API_PREFIX"),
+	})
+
+	v.SetDefault("FL", map[string]interface{}{
+		"SERVER_URL":      v.GetString("FL_SERVER_URL"),
+		"DEFAULT_TIMEOUT": v.GetString("FL_DEFAULT_TIMEOUT"),
+		"RETRY_ATTEMPTS":  v.GetInt("FL_RETRY_ATTEMPTS"),
+		"LOG_LEVEL":       v.GetString("FL_LOG_LEVEL"),
 	})
 
 	var config Config
