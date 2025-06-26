@@ -25,6 +25,9 @@ type FilecoinNetworkConfig struct {
 	ChainID            int64  `mapstructure:"CHAIN_ID"`
 	TokenAddress       string `mapstructure:"TOKEN_ADDRESS"`
 	StakeWalletAddress string `mapstructure:"STAKE_WALLET_ADDRESS"`
+	IPFSEndpoint       string `mapstructure:"IPFS_ENDPOINT"`
+	GatewayURL         string `mapstructure:"GATEWAY_URL"`
+	CreateStorageDeals bool   `mapstructure:"CREATE_STORAGE_DEALS"`
 }
 
 type RunnerConfig struct {
