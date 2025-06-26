@@ -38,6 +38,17 @@ type BillingMetricsResponse struct {
 	AvgInferenceTime float64 `json:"avg_inference_time_ms"`
 }
 
+type ModelInfo struct {
+	ModelName string `json:"model_name"`
+	MaxTokens int    `json:"max_tokens"`
+	IsLoaded  bool   `json:"is_loaded"`
+}
+
+type ModelsResponse struct {
+	Models []ModelInfo `json:"models"`
+	Count  int         `json:"count"`
+}
+
 func NewLLMClient(serverURL, clientID string) *LLMClient {
 	return &LLMClient{
 		serverURL: serverURL,
@@ -202,6 +213,31 @@ func (c *LLMClient) GetBillingMetrics(ctx context.Context) (*BillingMetricsRespo
 	}
 
 	var response BillingMetricsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &response, nil
+}
+
+func (c *LLMClient) GetAvailableModels(ctx context.Context) (*ModelsResponse, error) {
+	url := fmt.Sprintf("%s/api/llm/models", c.serverURL)
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get available models: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get available models failed with status: %d", resp.StatusCode)
+	}
+
+	var response ModelsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}

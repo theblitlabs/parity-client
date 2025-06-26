@@ -210,6 +210,61 @@ var statusCmd = &cobra.Command{
 	},
 }
 
+var listModelsCmd = &cobra.Command{
+	Use:   "list-models",
+	Short: "List available LLM models",
+	Long:  `List all available LLM models that are currently loaded and ready to use`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		configPath, _ := cmd.Flags().GetString("config-path")
+		if configPath == "" {
+			configPath = utils.GetDefaultConfigPath()
+		}
+
+		configManager := config.NewConfigManager(configPath)
+		cfg, err := configManager.GetConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+
+		if cfg.Runner.ServerURL == "" {
+			return fmt.Errorf("runner server URL not configured. Please set RUNNER_SERVER_URL in your config")
+		}
+
+		clientID := "parity-client-" + strconv.FormatInt(time.Now().Unix(), 10)
+		llmClient := client.NewLLMClient(cfg.Runner.ServerURL, clientID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		modelsResp, err := llmClient.GetAvailableModels(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get available models: %w", err)
+		}
+
+		if len(modelsResp.Models) == 0 {
+			fmt.Println("No models are currently available")
+			return nil
+		}
+
+		fmt.Printf("🤖 Available Models (%d):\n\n", modelsResp.Count)
+		for i, model := range modelsResp.Models {
+			fmt.Printf("%d. %s\n", i+1, model.ModelName)
+			if model.MaxTokens > 0 {
+				fmt.Printf("   Max Tokens: %d\n", model.MaxTokens)
+			}
+			fmt.Printf("   Status: %s\n", func() string {
+				if model.IsLoaded {
+					return "✅ Loaded"
+				}
+				return "⏳ Loading"
+			}())
+			fmt.Println()
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	// Submit command flags
 	submitCmd.Flags().StringP("model", "m", "", "Model name (required)")
@@ -224,6 +279,7 @@ func init() {
 	// Add subcommands
 	llmCmd.AddCommand(submitCmd)
 	llmCmd.AddCommand(listCmd)
+	llmCmd.AddCommand(listModelsCmd)
 	llmCmd.AddCommand(statusCmd)
 }
 
