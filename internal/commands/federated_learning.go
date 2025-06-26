@@ -78,6 +78,11 @@ var createSessionCmd = &cobra.Command{
 		noiseMultiplier, _ := cmd.Flags().GetFloat64("noise-multiplier")
 		l2NormClip, _ := cmd.Flags().GetFloat64("l2-norm-clip")
 
+		// Get data partitioning parameters
+		alpha, _ := cmd.Flags().GetFloat64("alpha")
+		minSamples, _ := cmd.Flags().GetInt("min-samples")
+		overlapRatio, _ := cmd.Flags().GetFloat64("overlap-ratio")
+
 		// Initialize client
 		flClient, err := createFLClient(cfg)
 		if err != nil {
@@ -122,6 +127,11 @@ var createSessionCmd = &cobra.Command{
 				SplitStrategy: splitStrategy,
 				Features:      []string{"feature1", "feature2", "feature3"},
 				Labels:        []string{"label"},
+				Metadata: map[string]interface{}{
+					"alpha":         alpha,
+					"min_samples":   minSamples,
+					"overlap_ratio": overlapRatio,
+				},
 			},
 			Config: client.FLConfigRequest{
 				AggregationMethod: aggregationMethod,
@@ -436,6 +446,11 @@ var createSessionWithDataCmd = &cobra.Command{
 		noiseMultiplier, _ := cmd.Flags().GetFloat64("noise-multiplier")
 		l2NormClip, _ := cmd.Flags().GetFloat64("l2-norm-clip")
 
+		// Get data partitioning parameters
+		alpha, _ := cmd.Flags().GetFloat64("alpha")
+		minSamples, _ := cmd.Flags().GetInt("min-samples")
+		overlapRatio, _ := cmd.Flags().GetFloat64("overlap-ratio")
+
 		// Initialize storage service
 		filecoinService, err := storage.NewFilecoinService(cfg)
 		if err != nil {
@@ -518,6 +533,11 @@ var createSessionWithDataCmd = &cobra.Command{
 				DatasetSize:   datasetSize,
 				DataFormat:    dataFormat,
 				SplitStrategy: splitStrategy,
+				Metadata: map[string]interface{}{
+					"alpha":         alpha,
+					"min_samples":   minSamples,
+					"overlap_ratio": overlapRatio,
+				},
 			},
 			Config: client.FLConfigRequest{
 				AggregationMethod: "federated_averaging",
@@ -741,11 +761,16 @@ func init() {
 	createSessionCmd.Flags().IntP("local-epochs", "e", 3, "Local epochs")
 	createSessionCmd.Flags().String("dataset-cid", "", "IPFS/Filecoin dataset CID (required)")
 	createSessionCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
-	createSessionCmd.Flags().String("split-strategy", "random", "Data split strategy (random, sequential, stratified)")
+	createSessionCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
 	createSessionCmd.Flags().String("config-file", "", "Custom model configuration file")
 	createSessionCmd.Flags().Bool("enable-differential-privacy", false, "Enable differential privacy")
 	createSessionCmd.Flags().Float64("noise-multiplier", 0.1, "Noise multiplier for differential privacy")
 	createSessionCmd.Flags().Float64("l2-norm-clip", 1.0, "L2 norm clipping for differential privacy")
+
+	// Data partitioning flags for truly distributed FL
+	createSessionCmd.Flags().Float64("alpha", 0.5, "Dirichlet distribution parameter for non-IID partitioning (lower = more skewed)")
+	createSessionCmd.Flags().Int("min-samples", 50, "Minimum samples per participant")
+	createSessionCmd.Flags().Float64("overlap-ratio", 0.0, "Data overlap ratio between participants (0.0 = no overlap, 0.1 = 10% overlap)")
 
 	// List sessions flags
 	listSessionsCmd.Flags().StringP("creator-address", "c", "", "Filter by creator address")
@@ -770,11 +795,16 @@ func init() {
 	createSessionWithDataCmd.Flags().IntP("total-rounds", "r", 0, "Total training rounds (required)")
 	createSessionWithDataCmd.Flags().IntP("min-participants", "p", 1, "Minimum participants")
 	createSessionWithDataCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
-	createSessionWithDataCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential)")
+	createSessionWithDataCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
 	createSessionWithDataCmd.Flags().String("config-file", "", "Custom model configuration file")
 	createSessionWithDataCmd.Flags().Bool("enable-differential-privacy", false, "Enable differential privacy")
 	createSessionWithDataCmd.Flags().Float64("noise-multiplier", 0.1, "Noise multiplier for differential privacy")
 	createSessionWithDataCmd.Flags().Float64("l2-norm-clip", 1.0, "L2 norm clipping for differential privacy")
+
+	// Data partitioning flags for session with data
+	createSessionWithDataCmd.Flags().Float64("alpha", 0.5, "Dirichlet distribution parameter for non-IID partitioning")
+	createSessionWithDataCmd.Flags().Int("min-samples", 50, "Minimum samples per participant")
+	createSessionWithDataCmd.Flags().Float64("overlap-ratio", 0.0, "Data overlap ratio between participants")
 
 	// Mark required flags
 	createSessionCmd.MarkFlagRequired("name")
