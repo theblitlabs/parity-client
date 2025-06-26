@@ -6,4 +6,5 @@ func AddCommands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(stakeCmd)
 	rootCmd.AddCommand(balanceCmd)
+	rootCmd.AddCommand(llmCmd)
 }
