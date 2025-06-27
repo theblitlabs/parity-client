@@ -97,7 +97,7 @@ func displayTokenBalance(ctx context.Context, walletAdapter *wallet.Adapter, cfg
 
 	log.Info().
 		Str("wallet_address", walletAdapter.GetAddress().Hex()).
-		Str("balance", tokenBalance.String()+" PRTY").
+		Str("balance", tokenBalance.String()+" USDFC").
 		Msg("Wallet token balance")
 }
 
@@ -141,7 +141,7 @@ func displayStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *c
 
 func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, stakeInfo walletsdk.StakeInfo, log zerolog.Logger) {
 	log.Info().
-		Str("amount", stakeInfo.Amount.String()+" PRTY").
+		Str("amount", stakeInfo.Amount.String()+" USDFC").
 		Str("device_id", stakeInfo.DeviceID).
 		Str("wallet_address", stakeInfo.WalletAddress.Hex()).
 		Msg("Current stake info")
@@ -164,7 +164,7 @@ func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter
 	}
 
 	log.Info().
-		Str("balance", contractBalance.String()+" PRTY").
+		Str("balance", contractBalance.String()+" USDFC").
 		Str("contract_address", cfg.FilecoinNetwork.StakeWalletAddress).
 		Msg("Contract token balance")
 }
