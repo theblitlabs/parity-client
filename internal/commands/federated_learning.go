@@ -90,18 +90,19 @@ var createSessionCmd = &cobra.Command{
 		}
 
 		// Load custom config if provided
-		modelConfig := map[string]interface{}{
-			"input_size":  784,
-			"output_size": 10,
-			"hidden_size": 128,
-		}
+		modelConfig := map[string]interface{}{}
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
 				json.Unmarshal(data, &modelConfig)
 				fmt.Printf("Custom model config loaded from: %s\n", configFile)
 			} else {
-				fmt.Printf("Failed to load custom config from %s, using defaults\n", configFile)
+				fmt.Printf("Failed to load custom config from %s\n", configFile)
 			}
+		}
+
+		// Only set model config from what's explicitly provided
+		if len(modelConfig) == 0 {
+			return fmt.Errorf("model configuration is required - please provide via --config-file flag")
 		}
 
 		// Add differential privacy settings if enabled
@@ -375,9 +376,7 @@ var submitUpdateCmd = &cobra.Command{
 			Accuracy:     accuracy,
 			TrainingTime: 2000,
 			Metadata: map[string]interface{}{
-				"local_epochs":  3,
-				"batch_size":    32,
-				"learning_rate": 0.001,
+				"submission_time": time.Now().Unix(),
 			},
 		}
 
@@ -496,11 +495,7 @@ var createSessionWithDataCmd = &cobra.Command{
 		}
 
 		// Load custom config if provided
-		modelConfig := map[string]interface{}{
-			"input_size":  784,
-			"output_size": 10,
-			"hidden_size": 128,
-		}
+		modelConfig := map[string]interface{}{}
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
 				json.Unmarshal(data, &modelConfig)
@@ -508,6 +503,11 @@ var createSessionWithDataCmd = &cobra.Command{
 			} else {
 				log.Warn().Err(err).Str("config_file", configFile).Msg("Failed to load custom config, using defaults")
 			}
+		}
+
+		// Only set model config from what's explicitly provided
+		if len(modelConfig) == 0 {
+			return fmt.Errorf("model configuration is required - please provide via --config-file flag")
 		}
 
 		// Add differential privacy settings if enabled
@@ -519,6 +519,12 @@ var createSessionWithDataCmd = &cobra.Command{
 			}
 			log.Info().Float64("noise_multiplier", noiseMultiplier).Float64("l2_norm_clip", l2NormClip).Msg("Differential privacy enabled")
 		}
+
+		// Get aggregation method from flags
+		aggregationMethod, _ := cmd.Flags().GetString("aggregation-method")
+		learningRate, _ := cmd.Flags().GetFloat64("learning-rate")
+		batchSize, _ := cmd.Flags().GetInt("batch-size")
+		localEpochs, _ := cmd.Flags().GetInt("local-epochs")
 
 		// Create session request with uploaded data CID
 		request := &client.CreateFLSessionRequest{
@@ -540,10 +546,10 @@ var createSessionWithDataCmd = &cobra.Command{
 				},
 			},
 			Config: client.FLConfigRequest{
-				AggregationMethod: "federated_averaging",
-				LearningRate:      0.001,
-				BatchSize:         32,
-				LocalEpochs:       3,
+				AggregationMethod: aggregationMethod,
+				LearningRate:      learningRate,
+				BatchSize:         batchSize,
+				LocalEpochs:       localEpochs,
 				ClientSelection:   "random",
 				ModelConfig:       modelConfig,
 			},
@@ -755,10 +761,10 @@ func init() {
 	createSessionCmd.Flags().StringP("model-type", "m", "", "Model type (required)")
 	createSessionCmd.Flags().IntP("total-rounds", "r", 10, "Total training rounds")
 	createSessionCmd.Flags().IntP("min-participants", "p", 1, "Minimum participants")
-	createSessionCmd.Flags().StringP("aggregation-method", "a", "federated_averaging", "Aggregation method")
-	createSessionCmd.Flags().Float64P("learning-rate", "l", 0.001, "Learning rate")
-	createSessionCmd.Flags().IntP("batch-size", "b", 32, "Batch size")
-	createSessionCmd.Flags().IntP("local-epochs", "e", 3, "Local epochs")
+	createSessionCmd.Flags().StringP("aggregation-method", "a", "", "Aggregation method (required)")
+	createSessionCmd.Flags().Float64P("learning-rate", "l", 0, "Learning rate (required)")
+	createSessionCmd.Flags().IntP("batch-size", "b", 0, "Batch size (required)")
+	createSessionCmd.Flags().IntP("local-epochs", "e", 0, "Local epochs (required)")
 	createSessionCmd.Flags().String("dataset-cid", "", "IPFS/Filecoin dataset CID (required)")
 	createSessionCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
 	createSessionCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
@@ -768,9 +774,9 @@ func init() {
 	createSessionCmd.Flags().Float64("l2-norm-clip", 1.0, "L2 norm clipping for differential privacy")
 
 	// Data partitioning flags for truly distributed FL
-	createSessionCmd.Flags().Float64("alpha", 0.5, "Dirichlet distribution parameter for non-IID partitioning (lower = more skewed)")
-	createSessionCmd.Flags().Int("min-samples", 50, "Minimum samples per participant")
-	createSessionCmd.Flags().Float64("overlap-ratio", 0.0, "Data overlap ratio between participants (0.0 = no overlap, 0.1 = 10% overlap)")
+	createSessionCmd.Flags().Float64("alpha", 0, "Dirichlet distribution parameter for non-IID partitioning (required for non_iid strategy)")
+	createSessionCmd.Flags().Int("min-samples", 0, "Minimum samples per participant (required)")
+	createSessionCmd.Flags().Float64("overlap-ratio", 0, "Data overlap ratio between participants (0.0 = no overlap, 0.1 = 10% overlap)")
 
 	// List sessions flags
 	listSessionsCmd.Flags().StringP("creator-address", "c", "", "Filter by creator address")
@@ -794,22 +800,32 @@ func init() {
 	createSessionWithDataCmd.Flags().StringP("model-type", "m", "", "Model type (required)")
 	createSessionWithDataCmd.Flags().IntP("total-rounds", "r", 0, "Total training rounds (required)")
 	createSessionWithDataCmd.Flags().IntP("min-participants", "p", 1, "Minimum participants")
+	createSessionWithDataCmd.Flags().StringP("aggregation-method", "a", "", "Aggregation method (required)")
+	createSessionWithDataCmd.Flags().Float64P("learning-rate", "l", 0, "Learning rate (required)")
+	createSessionWithDataCmd.Flags().IntP("batch-size", "b", 0, "Batch size (required)")
+	createSessionWithDataCmd.Flags().IntP("local-epochs", "e", 0, "Local epochs (required)")
 	createSessionWithDataCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
 	createSessionWithDataCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
-	createSessionWithDataCmd.Flags().String("config-file", "", "Custom model configuration file")
+	createSessionWithDataCmd.Flags().String("config-file", "", "Custom model configuration file (required)")
 	createSessionWithDataCmd.Flags().Bool("enable-differential-privacy", false, "Enable differential privacy")
 	createSessionWithDataCmd.Flags().Float64("noise-multiplier", 0.1, "Noise multiplier for differential privacy")
 	createSessionWithDataCmd.Flags().Float64("l2-norm-clip", 1.0, "L2 norm clipping for differential privacy")
 
 	// Data partitioning flags for session with data
-	createSessionWithDataCmd.Flags().Float64("alpha", 0.5, "Dirichlet distribution parameter for non-IID partitioning")
-	createSessionWithDataCmd.Flags().Int("min-samples", 50, "Minimum samples per participant")
-	createSessionWithDataCmd.Flags().Float64("overlap-ratio", 0.0, "Data overlap ratio between participants")
+	createSessionWithDataCmd.Flags().Float64("alpha", 0, "Dirichlet distribution parameter for non-IID partitioning (required for non_iid strategy)")
+	createSessionWithDataCmd.Flags().Int("min-samples", 0, "Minimum samples per participant (required)")
+	createSessionWithDataCmd.Flags().Float64("overlap-ratio", 0, "Data overlap ratio between participants")
 
 	// Mark required flags
 	createSessionCmd.MarkFlagRequired("name")
 	createSessionCmd.MarkFlagRequired("model-type")
 	createSessionCmd.MarkFlagRequired("dataset-cid")
+	createSessionCmd.MarkFlagRequired("aggregation-method")
+	createSessionCmd.MarkFlagRequired("learning-rate")
+	createSessionCmd.MarkFlagRequired("batch-size")
+	createSessionCmd.MarkFlagRequired("local-epochs")
+	createSessionCmd.MarkFlagRequired("config-file")
+	createSessionCmd.MarkFlagRequired("min-samples")
 
 	submitUpdateCmd.MarkFlagRequired("session-id")
 	submitUpdateCmd.MarkFlagRequired("round-id")
@@ -818,6 +834,12 @@ func init() {
 	createSessionWithDataCmd.MarkFlagRequired("name")
 	createSessionWithDataCmd.MarkFlagRequired("model-type")
 	createSessionWithDataCmd.MarkFlagRequired("total-rounds")
+	createSessionWithDataCmd.MarkFlagRequired("aggregation-method")
+	createSessionWithDataCmd.MarkFlagRequired("learning-rate")
+	createSessionWithDataCmd.MarkFlagRequired("batch-size")
+	createSessionWithDataCmd.MarkFlagRequired("local-epochs")
+	createSessionWithDataCmd.MarkFlagRequired("config-file")
+	createSessionWithDataCmd.MarkFlagRequired("min-samples")
 
 	// Add subcommands
 	flCmd.AddCommand(createSessionCmd)

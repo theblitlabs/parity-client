@@ -1,6 +1,6 @@
 # Parity Client
 
-The command-line interface for the PLGenesis decentralized AI and compute network. Parity Client provides an intuitive way to interact with the network, submit tasks, execute LLM inference, and manage your account.
+The command-line interface for the PLGenesis decentralized AI and compute network. Parity Client provides an intuitive way to interact with the network, submit tasks, execute LLM inference, and manage federated learning sessions.
 
 ## 🚀 Features
 
@@ -10,6 +10,14 @@ The command-line interface for the PLGenesis decentralized AI and compute networ
 - **Prompt Submission**: Submit prompts for processing with real-time status tracking
 - **Async Processing**: Non-blocking prompt submission with optional wait functionality
 - **Response Retrieval**: Get completed responses with comprehensive metadata
+
+### 🧠 Federated Learning
+
+- **Session Management**: Create and manage distributed federated learning sessions
+- **Data Partitioning**: Support for 5 partitioning strategies (random, stratified, sequential, non-IID, label skew)
+- **Model Training**: Coordinate distributed training across multiple participants
+- **Model Aggregation**: Retrieve trained models from completed sessions
+- **Real-time Monitoring**: Track training progress and participant status
 
 ### ⚡ Task Management
 
@@ -33,11 +41,14 @@ The command-line interface for the PLGenesis decentralized AI and compute networ
 - [Configuration](#configuration)
 - [Usage](#usage)
   - [Setup and Running](#setup-and-running)
-  - [Adding Tasks](#adding-tasks)
+  - [Federated Learning](#federated-learning)
+  - [LLM Operations](#llm-operations)
+  - [Task Management](#task-management)
+- [Configuration Files](#configuration-files)
+- [API Reference](#api-reference)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-- [Support](#support)
 - [License](#license)
 
 ## Quick Start
@@ -139,24 +150,6 @@ This will:
 
 After installation, you can run `parity-client` from any directory and it will automatically use the config from `~/.parity/.env`.
 
-### Custom Config Path
-
-You can specify a custom config path using the `--config-path` flag:
-
-```bash
-parity-client --config-path /path/to/custom.env
-```
-
-### Uninstalling
-
-To remove the client and clean up config files:
-
-```bash
-make uninstall
-```
-
-This removes both the binary and the `~/.parity` directory.
-
 ## Usage
 
 ### Setup and Running
@@ -173,25 +166,168 @@ parity-client auth --private-key YOUR_PRIVATE_KEY
 parity-client stake --amount 10
 ```
 
-3. Run the client:
+### Federated Learning
+
+The federated learning system requires explicit configuration for all parameters. No default values are used to ensure complete transparency and control.
+
+#### Creating Model Configuration Files
+
+Before creating FL sessions, you need to prepare model configuration files:
+
+**neural_network_config.json**:
+
+```json
+{
+  "input_size": 784,
+  "hidden_size": 128,
+  "output_size": 10
+}
+```
+
+**linear_regression_config.json**:
+
+```json
+{
+  "input_size": 13,
+  "output_size": 1
+}
+```
+
+#### 1. Create Federated Learning Session
 
 ```bash
-parity-client
+# Basic neural network session
+parity-client fl create-session \
+  --name "MNIST Classification" \
+  --description "Distributed MNIST digit classification" \
+  --model-type neural_network \
+  --total-rounds 10 \
+  --min-participants 3 \
+  --dataset-cid QmYourDatasetCID \
+  --config-file neural_network_config.json \
+  --aggregation-method federated_averaging \
+  --learning-rate 0.001 \
+  --batch-size 32 \
+  --local-epochs 5 \
+  --split-strategy random \
+  --min-samples 100 \
+  --alpha 0.5 \
+  --overlap-ratio 0.0
+
+# Non-IID partitioning session
+parity-client fl create-session \
+  --name "Non-IID Training" \
+  --model-type neural_network \
+  --total-rounds 5 \
+  --dataset-cid QmYourDatasetCID \
+  --config-file neural_network_config.json \
+  --aggregation-method federated_averaging \
+  --learning-rate 0.005 \
+  --batch-size 64 \
+  --local-epochs 3 \
+  --split-strategy non_iid \
+  --alpha 0.1 \
+  --min-samples 50 \
+  --overlap-ratio 0.0
 ```
+
+#### 2. Upload Data and Create Session in One Step
+
+```bash
+parity-client fl create-session-with-data ./mnist_dataset.csv \
+  --name "MNIST Training" \
+  --model-type neural_network \
+  --total-rounds 10 \
+  --min-participants 2 \
+  --config-file neural_network_config.json \
+  --aggregation-method federated_averaging \
+  --learning-rate 0.001 \
+  --batch-size 32 \
+  --local-epochs 5 \
+  --split-strategy stratified \
+  --min-samples 100 \
+  --alpha 0.5 \
+  --overlap-ratio 0.0
+```
+
+#### 3. Session Management
+
+```bash
+# List all sessions
+parity-client fl list-sessions
+
+# List sessions by creator
+parity-client fl list-sessions --creator-address 0x123...
+
+# Get detailed session info
+parity-client fl get-session SESSION_ID
+
+# Start a session
+parity-client fl start-session SESSION_ID
+```
+
+#### 4. Model Retrieval
+
+```bash
+# Display trained model
+parity-client fl get-model SESSION_ID
+
+# Save model to file
+parity-client fl get-model SESSION_ID --output trained_model.json
+```
+
+#### 5. Manual Model Updates (Advanced)
+
+```bash
+parity-client fl submit-update \
+  --session-id SESSION_ID \
+  --round-id ROUND_ID \
+  --runner-id RUNNER_ID \
+  --gradients-file gradients.json \
+  --data-size 1000 \
+  --loss 0.25 \
+  --accuracy 0.85
+```
+
+#### Data Partitioning Strategies
+
+The system supports five partitioning strategies:
+
+1. **Random (IID)**: `--split-strategy random`
+
+   - Uniform random distribution
+   - Requires: `--min-samples`
+
+2. **Stratified**: `--split-strategy stratified`
+
+   - Maintains class distribution
+   - Requires: `--min-samples`
+
+3. **Sequential**: `--split-strategy sequential`
+
+   - Consecutive data splits
+   - Requires: `--min-samples`
+
+4. **Non-IID**: `--split-strategy non_iid`
+
+   - Dirichlet distribution for class imbalance
+   - Requires: `--alpha`, `--min-samples`
+   - Lower alpha = more skewed distribution
+
+5. **Label Skew**: `--split-strategy label_skew`
+   - Each participant gets subset of classes
+   - Requires: `--min-samples`
+   - Optional: `--overlap-ratio` for class overlap
 
 ### LLM Operations
 
 #### List Available Models
-
-See which LLM models are currently available:
 
 ```bash
 parity-client llm list-models
 ```
 
 #### Submit LLM Prompts
-
-Submit a prompt for processing:
 
 ```bash
 # Submit and wait for completion
@@ -206,15 +342,13 @@ parity-client llm status <prompt-id>
 
 #### List Recent Prompts
 
-View your recent LLM prompts:
-
 ```bash
 parity-client llm list --limit 10
 ```
 
-### Adding Tasks
+### Task Management
 
-To add a new compute task to the network, use the REST API:
+Submit compute tasks to the network:
 
 ```bash
 curl -X POST http://localhost:3000/api/tasks \
@@ -227,9 +361,76 @@ curl -X POST http://localhost:3000/api/tasks \
   }'
 ```
 
+## Configuration Files
+
+### Model Configuration Examples
+
+#### Neural Network for MNIST
+
+```json
+{
+  "input_size": 784,
+  "hidden_size": 128,
+  "output_size": 10
+}
+```
+
+#### Neural Network for CIFAR-10
+
+```json
+{
+  "input_size": 3072,
+  "hidden_size": 256,
+  "output_size": 10
+}
+```
+
+#### Linear Regression for Boston Housing
+
+```json
+{
+  "input_size": 13,
+  "output_size": 1
+}
+```
+
+#### Large Neural Network
+
+```json
+{
+  "input_size": 2048,
+  "hidden_size": 512,
+  "output_size": 100
+}
+```
+
+### Differential Privacy Configuration
+
+Enable differential privacy in your sessions:
+
+```bash
+parity-client fl create-session \
+  --name "Private Training" \
+  --model-type neural_network \
+  --config-file neural_network_config.json \
+  --enable-differential-privacy \
+  --noise-multiplier 0.1 \
+  --l2-norm-clip 1.0 \
+  # ... other required flags
+```
+
 ## API Reference
 
-The parity-client interacts with various server endpoints. Below are the main API endpoints available:
+### Federated Learning Endpoints
+
+| Method | Endpoint                                       | Description          |
+| ------ | ---------------------------------------------- | -------------------- |
+| POST   | /api/v1/federated-learning/sessions            | Create FL session    |
+| GET    | /api/v1/federated-learning/sessions            | List FL sessions     |
+| GET    | /api/v1/federated-learning/sessions/{id}       | Get session details  |
+| POST   | /api/v1/federated-learning/sessions/{id}/start | Start FL session     |
+| GET    | /api/v1/federated-learning/sessions/{id}/model | Get trained model    |
+| POST   | /api/v1/federated-learning/model-updates       | Submit model updates |
 
 ### LLM Endpoints
 
@@ -249,17 +450,6 @@ The parity-client interacts with various server endpoints. Below are the main AP
 | GET    | /api/tasks/{id}        | Get task details |
 | GET    | /api/tasks/{id}/status | Get task status  |
 | GET    | /api/tasks/{id}/logs   | Get task logs    |
-
-### Federated Learning Endpoints
-
-| Method | Endpoint                                       | Description          |
-| ------ | ---------------------------------------------- | -------------------- |
-| POST   | /api/v1/federated-learning/sessions            | Create FL session    |
-| GET    | /api/v1/federated-learning/sessions            | List FL sessions     |
-| GET    | /api/v1/federated-learning/sessions/{id}       | Get session details  |
-| POST   | /api/v1/federated-learning/sessions/{id}/start | Start FL session     |
-| GET    | /api/v1/federated-learning/sessions/{id}/model | Get trained model    |
-| POST   | /api/v1/federated-learning/model-updates       | Submit model updates |
 
 ### Storage Endpoints
 
@@ -316,31 +506,51 @@ make watch
 
 ## Troubleshooting
 
-Common issues and solutions:
+### Common Issues
 
 1. **Configuration Issues**
 
    - Ensure your `.env` file exists and is properly configured
    - For development: Check `.env` in your project directory
-   - For installed client: Check `~/.parity/.env` or run `parity-client --help` to see current config path
-   - Check that all required environment variables are set
-   - Verify the config path if using `--config-path`
+   - For installed client: Check `~/.parity/.env`
+   - Verify all required environment variables are set
 
-2. **Connection Issues**
+2. **Federated Learning Issues**
+
+   - **Missing required flags**: All FL parameters must be explicitly provided
+   - **Invalid model config**: Ensure your model configuration JSON is valid
+   - **Partition validation errors**: Check strategy-specific requirements:
+     - `non_iid` requires positive `--alpha` value
+     - All strategies require positive `--min-samples`
+   - **Learning rate errors**: Must be between 0 and 1.0
+
+3. **Connection Issues**
 
    - Ensure your Filecoin RPC URL is correct and accessible
-   - Check your internet connection
-   - Verify your firewall settings
+   - Check your internet connection and firewall settings
+   - Verify FL server URL in configuration
 
-3. **Authentication Errors**
-
+4. **Authentication Errors**
    - Verify your private key is correct
    - Ensure you have sufficient tokens for staking
 
-4. **Task Execution Failures**
-   - Check Docker is running and accessible
-   - Verify you have sufficient disk space
-   - Ensure required ports are not blocked
+### Error Examples and Solutions
+
+**Error**: `model configuration is required - please provide via --config-file flag`
+**Solution**: Create a model configuration JSON file and use `--config-file`
+
+**Error**: `alpha parameter is required for non_iid partitioning strategy`
+**Solution**: Provide `--alpha` parameter when using `--split-strategy non_iid`
+
+**Error**: `learning rate must be positive, got 0.000000`
+**Solution**: Provide a positive learning rate: `--learning-rate 0.001`
+
+**Error**: `training configuration is incomplete`
+**Solution**: Ensure all required training parameters are provided:
+
+- `--learning-rate`
+- `--batch-size`
+- `--local-epochs`
 
 ## Contributing
 
