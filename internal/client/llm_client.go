@@ -18,8 +18,9 @@ type LLMClient struct {
 }
 
 type PromptRequest struct {
-	Prompt    string `json:"prompt"`
-	ModelName string `json:"model_name"`
+	Prompt         string `json:"prompt"`
+	ModelName      string `json:"model_name"`
+	CreatorAddress string `json:"creator_address"`
 }
 
 type PromptResponse struct {
@@ -59,12 +60,13 @@ func NewLLMClient(serverURL, clientID string) *LLMClient {
 	}
 }
 
-func (c *LLMClient) SubmitPrompt(ctx context.Context, prompt, modelName string) (*PromptResponse, error) {
+func (c *LLMClient) SubmitPrompt(ctx context.Context, prompt, modelName, creatorAddress string) (*PromptResponse, error) {
 	log := gologger.WithComponent("llm_client")
 
 	req := PromptRequest{
-		Prompt:    prompt,
-		ModelName: modelName,
+		Prompt:         prompt,
+		ModelName:      modelName,
+		CreatorAddress: creatorAddress,
 	}
 
 	reqBody, err := json.Marshal(req)
@@ -84,6 +86,7 @@ func (c *LLMClient) SubmitPrompt(ctx context.Context, prompt, modelName string) 
 
 	log.Info().
 		Str("model_name", modelName).
+		Str("creator_address", creatorAddress).
 		Str("prompt_preview", truncateString(prompt, 100)).
 		Msg("Submitting prompt request")
 

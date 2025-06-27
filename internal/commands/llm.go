@@ -6,8 +6,12 @@ import (
 	"strconv"
 	"time"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
+	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
+	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/wallet"
 	"github.com/theblitlabs/parity-client/internal/client"
 	"github.com/theblitlabs/parity-client/internal/config"
 	"github.com/theblitlabs/parity-client/internal/utils"
@@ -23,6 +27,11 @@ var submitCmd = &cobra.Command{
 	Use:   "submit",
 	Short: "Submit a prompt to an LLM model",
 	Long:  `Submit a prompt to an LLM model and optionally wait for completion`,
+	Example: `  # Submit prompt and wait for response
+  parity-client llm submit --model gpt-4 --prompt "What is the capital of France?" --wait
+
+  # Submit prompt without waiting
+  parity-client llm submit --model llama2 --prompt "Explain quantum computing"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log := gologger.WithComponent("llm_submit")
 
@@ -49,6 +58,12 @@ var submitCmd = &cobra.Command{
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
+		// Get creator address from wallet
+		creatorAddress, err := getLLMCreatorAddress(cfg)
+		if err != nil {
+			return err
+		}
+
 		if cfg.Runner.ServerURL == "" {
 			return fmt.Errorf("runner server URL not configured. Please set RUNNER_SERVER_URL in your config")
 		}
@@ -63,11 +78,12 @@ var submitCmd = &cobra.Command{
 
 		log.Info().
 			Str("model", model).
+			Str("creator_address", creatorAddress).
 			Str("prompt_preview", truncatePrompt(prompt, 50)).
 			Bool("wait", wait).
 			Msg("Submitting prompt")
 
-		response, err := llmClient.SubmitPrompt(ctx, prompt, model)
+		response, err := llmClient.SubmitPrompt(ctx, prompt, model, creatorAddress)
 		if err != nil {
 			return fmt.Errorf("failed to submit prompt: %w", err)
 		}
@@ -270,11 +286,20 @@ func init() {
 	submitCmd.Flags().StringP("model", "m", "", "Model name (required)")
 	submitCmd.Flags().StringP("prompt", "p", "", "Prompt text (required)")
 	submitCmd.Flags().BoolP("wait", "w", false, "Wait for completion")
-	submitCmd.Flags().Duration("timeout", 10*time.Minute, "Request timeout")
+	submitCmd.Flags().DurationP("timeout", "t", 5*time.Minute, "Timeout duration")
+	submitCmd.Flags().String("config-path", "", "Path to config file")
+
+	// Mark required flags
+	submitCmd.MarkFlagRequired("model")
+	submitCmd.MarkFlagRequired("prompt")
 
 	// List command flags
-	listCmd.Flags().IntP("limit", "l", 10, "Number of prompts to fetch")
-	listCmd.Flags().Int("offset", 0, "Offset for pagination")
+	listCmd.Flags().IntP("limit", "l", 10, "Number of prompts to list")
+	listCmd.Flags().IntP("offset", "o", 0, "Offset for pagination")
+	listCmd.Flags().String("config-path", "", "Path to config file")
+
+	// Status command flags
+	statusCmd.Flags().String("config-path", "", "Path to config file")
 
 	// Add subcommands
 	llmCmd.AddCommand(submitCmd)
@@ -288,4 +313,34 @@ func truncatePrompt(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+func getLLMCreatorAddress(cfg *config.Config) (string, error) {
+	// First load the private key from keystore
+	keystoreAdapter, err := keystore.NewAdapter(nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create keystore adapter: %w", err)
+	}
+
+	privateKey, err := keystoreAdapter.GetPrivateKeyHex()
+	if err != nil {
+		return "", fmt.Errorf("no private key found in keystore. Please authenticate first using 'parity-client auth'")
+	}
+
+	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
+		RPCURL:       cfg.FilecoinNetwork.RPC,
+		ChainID:      cfg.FilecoinNetwork.ChainID,
+		TokenAddress: ethcommon.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+		PrivateKey:   privateKey,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create wallet adapter: %w", err)
+	}
+
+	address := walletAdapter.GetAddress()
+	if (address == ethcommon.Address{}) {
+		return "", fmt.Errorf("no address found in wallet. Please authenticate first using 'parity-client auth'")
+	}
+
+	return address.Hex(), nil
 }

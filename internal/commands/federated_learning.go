@@ -8,8 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
+	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
+	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
+	"github.com/theblitlabs/parity-client/internal/adapters/wallet"
 	"github.com/theblitlabs/parity-client/internal/client"
 	"github.com/theblitlabs/parity-client/internal/config"
 	"github.com/theblitlabs/parity-client/internal/storage"
@@ -27,7 +31,7 @@ var createSessionCmd = &cobra.Command{
 	Short: "Create a new federated learning session",
 	Long:  `Create a new federated learning session with specified configuration and training parameters`,
 	Example: `  # Create a basic session
-  parity-client fl create-session --name "Image Classification" --model-type cnn --creator-address 0x123... --dataset-cid QmXXX...
+  parity-client fl create-session --name "Image Classification" --model-type cnn --dataset-cid QmXXX...
   
   # Create session with custom configuration
   parity-client fl create-session --name "Advanced Training" --model-type transformer --total-rounds 10 --min-participants 5`,
@@ -40,8 +44,13 @@ var createSessionCmd = &cobra.Command{
 		// Get required flags
 		name, _ := cmd.Flags().GetString("name")
 		modelType, _ := cmd.Flags().GetString("model-type")
-		creatorAddress, _ := cmd.Flags().GetString("creator-address")
 		datasetCID, _ := cmd.Flags().GetString("dataset-cid")
+
+		// Get creator address from wallet
+		creatorAddress, err := getCreatorAddress(cfg)
+		if err != nil {
+			return err
+		}
 
 		// Validate required fields
 		if name == "" {
@@ -49,9 +58,6 @@ var createSessionCmd = &cobra.Command{
 		}
 		if modelType == "" {
 			return fmt.Errorf("--model-type is required")
-		}
-		if creatorAddress == "" {
-			return fmt.Errorf("--creator-address is required")
 		}
 		if datasetCID == "" {
 			return fmt.Errorf("--dataset-cid is required")
@@ -72,6 +78,11 @@ var createSessionCmd = &cobra.Command{
 		noiseMultiplier, _ := cmd.Flags().GetFloat64("noise-multiplier")
 		l2NormClip, _ := cmd.Flags().GetFloat64("l2-norm-clip")
 
+		// Get data partitioning parameters
+		alpha, _ := cmd.Flags().GetFloat64("alpha")
+		minSamples, _ := cmd.Flags().GetInt("min-samples")
+		overlapRatio, _ := cmd.Flags().GetFloat64("overlap-ratio")
+
 		// Initialize client
 		flClient, err := createFLClient(cfg)
 		if err != nil {
@@ -79,18 +90,19 @@ var createSessionCmd = &cobra.Command{
 		}
 
 		// Load custom config if provided
-		modelConfig := map[string]interface{}{
-			"input_size":  784,
-			"output_size": 10,
-			"hidden_size": 128,
-		}
+		modelConfig := map[string]interface{}{}
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
 				json.Unmarshal(data, &modelConfig)
 				fmt.Printf("Custom model config loaded from: %s\n", configFile)
 			} else {
-				fmt.Printf("Failed to load custom config from %s, using defaults\n", configFile)
+				fmt.Printf("Failed to load custom config from %s\n", configFile)
 			}
+		}
+
+		// Only set model config from what's explicitly provided
+		if len(modelConfig) == 0 {
+			return fmt.Errorf("model configuration is required - please provide via --config-file flag")
 		}
 
 		// Add differential privacy settings if enabled
@@ -116,6 +128,11 @@ var createSessionCmd = &cobra.Command{
 				SplitStrategy: splitStrategy,
 				Features:      []string{"feature1", "feature2", "feature3"},
 				Labels:        []string{"label"},
+				Metadata: map[string]interface{}{
+					"alpha":         alpha,
+					"min_samples":   minSamples,
+					"overlap_ratio": overlapRatio,
+				},
 			},
 			Config: client.FLConfigRequest{
 				AggregationMethod: aggregationMethod,
@@ -315,6 +332,10 @@ var submitUpdateCmd = &cobra.Command{
 		sessionID, _ := cmd.Flags().GetString("session-id")
 		roundID, _ := cmd.Flags().GetString("round-id")
 		runnerID, _ := cmd.Flags().GetString("runner-id")
+		gradientsFile, _ := cmd.Flags().GetString("gradients-file")
+		dataSize, _ := cmd.Flags().GetInt("data-size")
+		loss, _ := cmd.Flags().GetFloat64("loss")
+		accuracy, _ := cmd.Flags().GetFloat64("accuracy")
 
 		// Validate required fields
 		if sessionID == "" {
@@ -326,30 +347,17 @@ var submitUpdateCmd = &cobra.Command{
 		if runnerID == "" {
 			return fmt.Errorf("--runner-id is required")
 		}
-
-		// Get optional flags
-		gradientsFile, _ := cmd.Flags().GetString("gradients-file")
-		dataSize, _ := cmd.Flags().GetInt("data-size")
-		loss, _ := cmd.Flags().GetFloat64("loss")
-		accuracy, _ := cmd.Flags().GetFloat64("accuracy")
+		if gradientsFile == "" {
+			return fmt.Errorf("--gradients-file is required")
+		}
 
 		var gradients map[string][]float64
-		if gradientsFile != "" {
-			data, err := os.ReadFile(gradientsFile)
-			if err != nil {
-				return fmt.Errorf("failed to read gradients file: %w", err)
-			}
-			if err := json.Unmarshal(data, &gradients); err != nil {
-				return fmt.Errorf("failed to parse gradients file: %w", err)
-			}
-		} else {
-			// Use mock gradients for demonstration
-			gradients = map[string][]float64{
-				"layer1_weights": {0.1, -0.05, 0.02, 0.08, -0.03},
-				"layer1_bias":    {0.01, -0.02},
-				"layer2_weights": {-0.02, 0.04, -0.01, 0.03},
-				"layer2_bias":    {0.005},
-			}
+		data, err := os.ReadFile(gradientsFile)
+		if err != nil {
+			return fmt.Errorf("failed to read gradients file: %w", err)
+		}
+		if err := json.Unmarshal(data, &gradients); err != nil {
+			return fmt.Errorf("failed to parse gradients file: %w", err)
 		}
 
 		flClient, err := createFLClient(cfg)
@@ -366,11 +374,9 @@ var submitUpdateCmd = &cobra.Command{
 			DataSize:     dataSize,
 			Loss:         loss,
 			Accuracy:     accuracy,
-			TrainingTime: 2000, // Mock training time in ms
+			TrainingTime: 2000,
 			Metadata: map[string]interface{}{
-				"local_epochs":  3,
-				"batch_size":    32,
-				"learning_rate": 0.001,
+				"submission_time": time.Now().Unix(),
 			},
 		}
 
@@ -412,6 +418,12 @@ var createSessionWithDataCmd = &cobra.Command{
 		modelType, _ := cmd.Flags().GetString("model-type")
 		totalRounds, _ := cmd.Flags().GetInt("total-rounds")
 
+		// Get creator address from wallet
+		creatorAddress, err := getCreatorAddress(cfg)
+		if err != nil {
+			return err
+		}
+
 		// Validate required fields
 		if name == "" {
 			return fmt.Errorf("--name is required")
@@ -426,7 +438,6 @@ var createSessionWithDataCmd = &cobra.Command{
 		// Get optional flags
 		description, _ := cmd.Flags().GetString("description")
 		minParticipants, _ := cmd.Flags().GetInt("min-participants")
-		creatorAddress, _ := cmd.Flags().GetString("creator-address")
 		dataFormat, _ := cmd.Flags().GetString("data-format")
 		splitStrategy, _ := cmd.Flags().GetString("split-strategy")
 		configFile, _ := cmd.Flags().GetString("config-file")
@@ -434,10 +445,10 @@ var createSessionWithDataCmd = &cobra.Command{
 		noiseMultiplier, _ := cmd.Flags().GetFloat64("noise-multiplier")
 		l2NormClip, _ := cmd.Flags().GetFloat64("l2-norm-clip")
 
-		// Use default creator address if not provided
-		if creatorAddress == "" {
-			creatorAddress = "0x0000000000000000000000000000000000000000"
-		}
+		// Get data partitioning parameters
+		alpha, _ := cmd.Flags().GetFloat64("alpha")
+		minSamples, _ := cmd.Flags().GetInt("min-samples")
+		overlapRatio, _ := cmd.Flags().GetFloat64("overlap-ratio")
 
 		// Initialize storage service
 		filecoinService, err := storage.NewFilecoinService(cfg)
@@ -484,11 +495,7 @@ var createSessionWithDataCmd = &cobra.Command{
 		}
 
 		// Load custom config if provided
-		modelConfig := map[string]interface{}{
-			"input_size":  784,
-			"output_size": 10,
-			"hidden_size": 128,
-		}
+		modelConfig := map[string]interface{}{}
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
 				json.Unmarshal(data, &modelConfig)
@@ -496,6 +503,11 @@ var createSessionWithDataCmd = &cobra.Command{
 			} else {
 				log.Warn().Err(err).Str("config_file", configFile).Msg("Failed to load custom config, using defaults")
 			}
+		}
+
+		// Only set model config from what's explicitly provided
+		if len(modelConfig) == 0 {
+			return fmt.Errorf("model configuration is required - please provide via --config-file flag")
 		}
 
 		// Add differential privacy settings if enabled
@@ -507,6 +519,12 @@ var createSessionWithDataCmd = &cobra.Command{
 			}
 			log.Info().Float64("noise_multiplier", noiseMultiplier).Float64("l2_norm_clip", l2NormClip).Msg("Differential privacy enabled")
 		}
+
+		// Get aggregation method from flags
+		aggregationMethod, _ := cmd.Flags().GetString("aggregation-method")
+		learningRate, _ := cmd.Flags().GetFloat64("learning-rate")
+		batchSize, _ := cmd.Flags().GetInt("batch-size")
+		localEpochs, _ := cmd.Flags().GetInt("local-epochs")
 
 		// Create session request with uploaded data CID
 		request := &client.CreateFLSessionRequest{
@@ -521,12 +539,17 @@ var createSessionWithDataCmd = &cobra.Command{
 				DatasetSize:   datasetSize,
 				DataFormat:    dataFormat,
 				SplitStrategy: splitStrategy,
+				Metadata: map[string]interface{}{
+					"alpha":         alpha,
+					"min_samples":   minSamples,
+					"overlap_ratio": overlapRatio,
+				},
 			},
 			Config: client.FLConfigRequest{
-				AggregationMethod: "federated_averaging",
-				LearningRate:      0.001,
-				BatchSize:         32,
-				LocalEpochs:       3,
+				AggregationMethod: aggregationMethod,
+				LearningRate:      learningRate,
+				BatchSize:         batchSize,
+				LocalEpochs:       localEpochs,
 				ClientSelection:   "random",
 				ModelConfig:       modelConfig,
 			},
@@ -557,6 +580,35 @@ func createFLClient(cfg *config.Config) (*client.FederatedLearningClient, error)
 		return nil, fmt.Errorf("federated learning server URL not configured")
 	}
 	return client.NewFederatedLearningClient(serverURL), nil
+}
+
+func getCreatorAddress(cfg *config.Config) (string, error) {
+	keystoreAdapter, err := keystore.NewAdapter(nil) // Uses default config
+	if err != nil {
+		return "", fmt.Errorf("failed to create keystore: %w", err)
+	}
+
+	privateKey, err := keystoreAdapter.GetPrivateKeyHex()
+	if err != nil {
+		return "", fmt.Errorf("failed to load private key: %w", err)
+	}
+
+	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
+		RPCURL:       cfg.FilecoinNetwork.RPC,
+		ChainID:      cfg.FilecoinNetwork.ChainID,
+		PrivateKey:   privateKey,
+		TokenAddress: ethcommon.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create wallet adapter: %w", err)
+	}
+
+	address := walletAdapter.GetAddress()
+	if (address == ethcommon.Address{}) {
+		return "", fmt.Errorf("no address found in wallet. Please authenticate first using 'parity-client auth'")
+	}
+
+	return address.Hex(), nil
 }
 
 func printSessionCreated(session *client.FLSession) {
@@ -709,18 +761,22 @@ func init() {
 	createSessionCmd.Flags().StringP("model-type", "m", "", "Model type (required)")
 	createSessionCmd.Flags().IntP("total-rounds", "r", 10, "Total training rounds")
 	createSessionCmd.Flags().IntP("min-participants", "p", 1, "Minimum participants")
-	createSessionCmd.Flags().StringP("creator-address", "c", "", "Creator wallet address (required)")
-	createSessionCmd.Flags().StringP("aggregation-method", "a", "federated_averaging", "Aggregation method")
-	createSessionCmd.Flags().Float64P("learning-rate", "l", 0.001, "Learning rate")
-	createSessionCmd.Flags().IntP("batch-size", "b", 32, "Batch size")
-	createSessionCmd.Flags().IntP("local-epochs", "e", 3, "Local epochs")
+	createSessionCmd.Flags().StringP("aggregation-method", "a", "", "Aggregation method (required)")
+	createSessionCmd.Flags().Float64P("learning-rate", "l", 0, "Learning rate (required)")
+	createSessionCmd.Flags().IntP("batch-size", "b", 0, "Batch size (required)")
+	createSessionCmd.Flags().IntP("local-epochs", "e", 0, "Local epochs (required)")
 	createSessionCmd.Flags().String("dataset-cid", "", "IPFS/Filecoin dataset CID (required)")
 	createSessionCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
-	createSessionCmd.Flags().String("split-strategy", "random", "Data split strategy (random, sequential, stratified)")
+	createSessionCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
 	createSessionCmd.Flags().String("config-file", "", "Custom model configuration file")
 	createSessionCmd.Flags().Bool("enable-differential-privacy", false, "Enable differential privacy")
 	createSessionCmd.Flags().Float64("noise-multiplier", 0.1, "Noise multiplier for differential privacy")
 	createSessionCmd.Flags().Float64("l2-norm-clip", 1.0, "L2 norm clipping for differential privacy")
+
+	// Data partitioning flags for truly distributed FL
+	createSessionCmd.Flags().Float64("alpha", 0, "Dirichlet distribution parameter for non-IID partitioning (required for non_iid strategy)")
+	createSessionCmd.Flags().Int("min-samples", 0, "Minimum samples per participant (required)")
+	createSessionCmd.Flags().Float64("overlap-ratio", 0, "Data overlap ratio between participants (0.0 = no overlap, 0.1 = 10% overlap)")
 
 	// List sessions flags
 	listSessionsCmd.Flags().StringP("creator-address", "c", "", "Filter by creator address")
@@ -744,19 +800,32 @@ func init() {
 	createSessionWithDataCmd.Flags().StringP("model-type", "m", "", "Model type (required)")
 	createSessionWithDataCmd.Flags().IntP("total-rounds", "r", 0, "Total training rounds (required)")
 	createSessionWithDataCmd.Flags().IntP("min-participants", "p", 1, "Minimum participants")
-	createSessionWithDataCmd.Flags().StringP("creator-address", "c", "", "Creator wallet address")
+	createSessionWithDataCmd.Flags().StringP("aggregation-method", "a", "", "Aggregation method (required)")
+	createSessionWithDataCmd.Flags().Float64P("learning-rate", "l", 0, "Learning rate (required)")
+	createSessionWithDataCmd.Flags().IntP("batch-size", "b", 0, "Batch size (required)")
+	createSessionWithDataCmd.Flags().IntP("local-epochs", "e", 0, "Local epochs (required)")
 	createSessionWithDataCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
-	createSessionWithDataCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential)")
-	createSessionWithDataCmd.Flags().String("config-file", "", "Custom model configuration file")
+	createSessionWithDataCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
+	createSessionWithDataCmd.Flags().String("config-file", "", "Custom model configuration file (required)")
 	createSessionWithDataCmd.Flags().Bool("enable-differential-privacy", false, "Enable differential privacy")
 	createSessionWithDataCmd.Flags().Float64("noise-multiplier", 0.1, "Noise multiplier for differential privacy")
 	createSessionWithDataCmd.Flags().Float64("l2-norm-clip", 1.0, "L2 norm clipping for differential privacy")
 
+	// Data partitioning flags for session with data
+	createSessionWithDataCmd.Flags().Float64("alpha", 0, "Dirichlet distribution parameter for non-IID partitioning (required for non_iid strategy)")
+	createSessionWithDataCmd.Flags().Int("min-samples", 0, "Minimum samples per participant (required)")
+	createSessionWithDataCmd.Flags().Float64("overlap-ratio", 0, "Data overlap ratio between participants")
+
 	// Mark required flags
 	createSessionCmd.MarkFlagRequired("name")
 	createSessionCmd.MarkFlagRequired("model-type")
-	createSessionCmd.MarkFlagRequired("creator-address")
 	createSessionCmd.MarkFlagRequired("dataset-cid")
+	createSessionCmd.MarkFlagRequired("aggregation-method")
+	createSessionCmd.MarkFlagRequired("learning-rate")
+	createSessionCmd.MarkFlagRequired("batch-size")
+	createSessionCmd.MarkFlagRequired("local-epochs")
+	createSessionCmd.MarkFlagRequired("config-file")
+	createSessionCmd.MarkFlagRequired("min-samples")
 
 	submitUpdateCmd.MarkFlagRequired("session-id")
 	submitUpdateCmd.MarkFlagRequired("round-id")
@@ -765,6 +834,12 @@ func init() {
 	createSessionWithDataCmd.MarkFlagRequired("name")
 	createSessionWithDataCmd.MarkFlagRequired("model-type")
 	createSessionWithDataCmd.MarkFlagRequired("total-rounds")
+	createSessionWithDataCmd.MarkFlagRequired("aggregation-method")
+	createSessionWithDataCmd.MarkFlagRequired("learning-rate")
+	createSessionWithDataCmd.MarkFlagRequired("batch-size")
+	createSessionWithDataCmd.MarkFlagRequired("local-epochs")
+	createSessionWithDataCmd.MarkFlagRequired("config-file")
+	createSessionWithDataCmd.MarkFlagRequired("min-samples")
 
 	// Add subcommands
 	flCmd.AddCommand(createSessionCmd)

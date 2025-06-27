@@ -29,12 +29,13 @@ type CreateFLSessionRequest struct {
 }
 
 type TrainingDataInfo struct {
-	DatasetCID    string   `json:"dataset_cid"`
-	DatasetSize   int64    `json:"dataset_size,omitempty"`
-	DataFormat    string   `json:"data_format"`
-	SplitStrategy string   `json:"split_strategy"`
-	Features      []string `json:"features,omitempty"`
-	Labels        []string `json:"labels,omitempty"`
+	DatasetCID    string                 `json:"dataset_cid"`
+	DatasetSize   int64                  `json:"dataset_size,omitempty"`
+	DataFormat    string                 `json:"data_format"`
+	SplitStrategy string                 `json:"split_strategy"`
+	Features      []string               `json:"features,omitempty"`
+	Labels        []string               `json:"labels,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type FLConfigRequest struct {
