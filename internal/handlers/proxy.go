@@ -32,7 +32,7 @@ func newProxyHandler(serverURL, deviceID, creatorAddr string) *proxyHandler {
 
 // forwardRequest forwards an HTTP request to the target server
 func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, path string) error {
-	targetURL := fmt.Sprintf("%s/%s", p.serverURL, path)
+	targetURL := fmt.Sprintf("%s/api/%s", p.serverURL, path)
 
 	proxyReq, err := http.NewRequest(req.Method, targetURL, req.Body)
 	if err != nil {
