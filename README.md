@@ -66,7 +66,7 @@ The command-line interface for the PLGenesis decentralized AI and compute networ
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/theblitlabs/parity-client.git
+git clone https://github.com/virajbhartiya/parity-client.git
 cd parity-client
 ```
 
