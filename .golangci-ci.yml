@@ -28,6 +28,9 @@ issues:
     - text: "unsupported version: 2"
       linters:
         - typecheck
+    - text: "could not load export data: internal error in importing"
+      linters:
+        - goanalysis_metalinter
 
 output:
   sort-results: true
