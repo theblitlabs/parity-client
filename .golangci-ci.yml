@@ -28,6 +28,9 @@ issues:
     - text: "unsupported version: 2"
       linters:
         - typecheck
+        - govet
+        - ineffassign
+        - unused
 
 output:
   sort-results: true
