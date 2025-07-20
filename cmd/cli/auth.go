@@ -12,6 +12,7 @@ import (
 	"github.com/theblitlabs/parity-client/internal/adapters/keystore"
 	"github.com/theblitlabs/parity-client/internal/adapters/wallet"
 	"github.com/theblitlabs/parity-client/internal/config"
+	"github.com/theblitlabs/parity-client/internal/utils"
 )
 
 func RunAuth(cmd *cobra.Command, args []string) {
@@ -28,8 +29,8 @@ func RunAuth(cmd *cobra.Command, args []string) {
 func ExecuteAuth(privateKey string, configPath string) error {
 	log := log.With().Str("component", "auth").Logger()
 
-	if privateKey == "" {
-		return fmt.Errorf("private key is required")
+	if err := utils.ValidatePrivateKey(privateKey); err != nil {
+		return err
 	}
 
 	configManager := config.NewConfigManager(configPath)
@@ -40,16 +41,12 @@ func ExecuteAuth(privateKey string, configPath string) error {
 
 	privateKey = strings.TrimPrefix(privateKey, "0x")
 
-	if len(privateKey) != 64 {
-		return fmt.Errorf("invalid private key - must be 64 hex characters without 0x prefix")
-	}
-
 	_, err = crypto.HexToECDSA(privateKey)
 	if err != nil {
 		return fmt.Errorf("invalid private key format: %w", err)
 	}
 
-	keystoreAdapter, err := keystore.NewAdapter(nil) // Uses default config
+	keystoreAdapter, err := keystore.NewAdapter(nil)
 	if err != nil {
 		return fmt.Errorf("failed to create keystore: %w", err)
 	}

@@ -41,11 +41,11 @@ var submitCmd = &cobra.Command{
 		wait, _ := cmd.Flags().GetBool("wait")
 		timeout, _ := cmd.Flags().GetDuration("timeout")
 
-		if model == "" {
-			return fmt.Errorf("model is required")
+		if err := utils.ValidateModelName(model); err != nil {
+			return err
 		}
-		if prompt == "" {
-			return fmt.Errorf("prompt is required")
+		if err := utils.ValidatePrompt(prompt); err != nil {
+			return err
 		}
 
 		configPath, _ := cmd.Flags().GetString("config-path")

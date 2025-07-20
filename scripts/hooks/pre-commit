@@ -32,7 +32,7 @@ fi
 # Run goimports if available
 if command -v goimports >/dev/null 2>&1; then
   echo "Automatically organizing imports with goimports..."
-  goimports -w -local github.com/theblitlabs/parity-runner .
+  goimports -w -local github.com/theblitlabs/parity-client .
 fi
 
 # Security checks

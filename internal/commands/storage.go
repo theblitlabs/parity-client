@@ -40,6 +40,11 @@ var uploadFileCmd = &cobra.Command{
 			log.Fatal().Str("file", filePath).Msg("File does not exist")
 		}
 
+		// Validate file path
+		if filePath == "" {
+			log.Fatal().Msg("File path is required")
+		}
+
 		configPath := utils.GetDefaultConfigPath()
 		configManager := config.NewConfigManager(configPath)
 		cfg, err := configManager.GetConfig()
@@ -117,6 +122,11 @@ var uploadDirectoryCmd = &cobra.Command{
 			log.Fatal().Str("directory", dirPath).Msg("Directory does not exist")
 		}
 
+		// Validate directory path
+		if dirPath == "" {
+			log.Fatal().Msg("Directory path is required")
+		}
+
 		configPath := utils.GetDefaultConfigPath()
 		configManager := config.NewConfigManager(configPath)
 		cfg, err := configManager.GetConfig()
@@ -176,6 +186,16 @@ var downloadFileCmd = &cobra.Command{
 
 		cid := args[0]
 		outputPath := args[1]
+
+		// Validate CID
+		if err := utils.ValidateDatasetCID(cid); err != nil {
+			log.Fatal().Err(err).Msg("Invalid CID")
+		}
+
+		// Validate output path
+		if outputPath == "" {
+			log.Fatal().Msg("Output path is required")
+		}
 
 		configPath := utils.GetDefaultConfigPath()
 		configManager := config.NewConfigManager(configPath)

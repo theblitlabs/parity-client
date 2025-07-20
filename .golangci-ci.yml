@@ -39,4 +39,4 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: "github.com/theblitlabs/parity-runner"
+    local-prefixes: "github.com/theblitlabs/parity-client"

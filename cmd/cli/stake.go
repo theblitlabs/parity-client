@@ -26,6 +26,11 @@ func RunStake(cmd *cobra.Command, args []string) {
 	amount, _ := cmd.Flags().GetFloat64("amount")
 	configPath, _ := cmd.Flags().GetString("config-path")
 
+	if err := utils.ValidateAmount(amount, 0.000001); err != nil {
+		log.Fatal().Err(err).Msg("Invalid stake amount")
+		return
+	}
+
 	log.Info().
 		Float64("amount", amount).
 		Msg("Processing stake request")

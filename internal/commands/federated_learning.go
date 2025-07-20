@@ -54,14 +54,14 @@ var createSessionCmd = &cobra.Command{
 		}
 
 		// Validate required fields
-		if name == "" {
-			return fmt.Errorf("--name is required")
+		if err := utils.ValidateFLSessionName(name); err != nil {
+			return err
 		}
 		if modelType == "" {
 			return fmt.Errorf("--model-type is required")
 		}
-		if datasetCID == "" {
-			return fmt.Errorf("--dataset-cid is required")
+		if err := utils.ValidateDatasetCID(datasetCID); err != nil {
+			return err
 		}
 
 		// Get optional flags
@@ -78,6 +78,33 @@ var createSessionCmd = &cobra.Command{
 		enableDP, _ := cmd.Flags().GetBool("enable-differential-privacy")
 		noiseMultiplier, _ := cmd.Flags().GetFloat64("noise-multiplier")
 		l2NormClip, _ := cmd.Flags().GetFloat64("l2-norm-clip")
+
+		// Validate optional parameters
+		if totalRounds > 0 {
+			if err := utils.ValidateTotalRounds(totalRounds); err != nil {
+				return err
+			}
+		}
+		if minParticipants > 0 {
+			if err := utils.ValidateMinParticipants(minParticipants); err != nil {
+				return err
+			}
+		}
+		if learningRate > 0 {
+			if err := utils.ValidateLearningRate(learningRate); err != nil {
+				return err
+			}
+		}
+		if batchSize > 0 {
+			if err := utils.ValidateBatchSize(batchSize); err != nil {
+				return err
+			}
+		}
+		if localEpochs > 0 {
+			if err := utils.ValidateLocalEpochs(localEpochs); err != nil {
+				return err
+			}
+		}
 
 		// Get data partitioning parameters
 		alpha, _ := cmd.Flags().GetFloat64("alpha")
@@ -732,7 +759,7 @@ func saveModelToFile(model map[string]interface{}, outputFile, format string) er
 		return fmt.Errorf("failed to marshal model data: %w", err)
 	}
 
-	if err := os.WriteFile(outputFile, data, 0644); err != nil {
+	if err := os.WriteFile(outputFile, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write to file: %w", err)
 	}
 

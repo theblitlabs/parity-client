@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/theblitlabs/deviceid"
 	"github.com/theblitlabs/parity-client/internal/config"
+	"github.com/theblitlabs/parity-client/internal/utils"
 )
 
 type RunnerStatus struct {
@@ -96,6 +97,9 @@ ban status, and overall network standing. This is the primary command for networ
 		var runnerID string
 		if len(args) > 0 {
 			runnerID = args[0]
+			if err := utils.ValidateDeviceID(runnerID); err != nil {
+				return err
+			}
 		} else {
 			deviceIDManager := deviceid.NewManager(deviceid.Config{})
 			runnerID, err = deviceIDManager.VerifyDeviceID()
@@ -151,6 +155,9 @@ and current standing in the network. Shows eligibility, ban status, and quality 
 		var runnerID string
 		if len(args) > 0 {
 			runnerID = args[0]
+			if err := utils.ValidateDeviceID(runnerID); err != nil {
+				return err
+			}
 		} else {
 			deviceIDManager := deviceid.NewManager(deviceid.Config{})
 			runnerID, err = deviceIDManager.VerifyDeviceID()
