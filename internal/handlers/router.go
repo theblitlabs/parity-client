@@ -12,22 +12,24 @@ import (
 )
 
 type RequestRouter struct {
-	config      *config.Config
-	deviceID    string
-	creatorAddr string
-	taskHandler *TaskHandler
-	proxy       *proxyHandler
-	logger      zerolog.Logger
+	config        *config.Config
+	deviceID      string
+	creatorAddr   string
+	taskHandler   *TaskHandler
+	proxy         *proxyHandler
+	healthHandler *HealthHandler
+	logger        zerolog.Logger
 }
 
 func NewRequestRouter(cfg *config.Config, deviceID, creatorAddr string) *RequestRouter {
 	return &RequestRouter{
-		config:      cfg,
-		deviceID:    deviceID,
-		creatorAddr: creatorAddr,
-		taskHandler: NewTaskHandler(cfg, deviceID, creatorAddr),
-		proxy:       newProxyHandler(cfg.Runner.ServerURL, deviceID, creatorAddr),
-		logger:      gologger.Get().With().Str("component", "router").Logger(),
+		config:        cfg,
+		deviceID:      deviceID,
+		creatorAddr:   creatorAddr,
+		taskHandler:   NewTaskHandler(cfg, deviceID, creatorAddr),
+		proxy:         newProxyHandler(cfg.Runner.ServerURL, deviceID, creatorAddr),
+		healthHandler: NewHealthHandler(cfg),
+		logger:        gologger.Get().With().Str("component", "router").Logger(),
 	}
 }
 
@@ -40,6 +42,11 @@ func (r *RequestRouter) HandleRequest(w http.ResponseWriter, req *http.Request) 
 
 	path := strings.TrimPrefix(req.URL.Path, "/")
 	path = strings.TrimPrefix(path, "api/")
+
+	// Handle health check endpoints
+	if r.handleHealthEndpoints(w, req, path) {
+		return
+	}
 
 	if req.Method == "POST" && strings.Contains(req.Header.Get("Content-Type"), "application/json") {
 		r.handleJSONRequest(w, req, path)
@@ -70,4 +77,30 @@ func (r *RequestRouter) handleJSONRequest(w http.ResponseWriter, req *http.Reque
 		}
 		return
 	}
+}
+
+func (r *RequestRouter) handleHealthEndpoints(w http.ResponseWriter, req *http.Request, path string) bool {
+	switch path {
+	case "health":
+		if req.Method == "GET" {
+			r.healthHandler.HandleHealthCheck(w, req)
+			return true
+		}
+	case "health/detailed":
+		if req.Method == "GET" {
+			r.healthHandler.HandleDetailedHealthCheck(w, req)
+			return true
+		}
+	case "health/ready":
+		if req.Method == "GET" {
+			r.healthHandler.HandleReadinessCheck(w, req)
+			return true
+		}
+	case "health/live":
+		if req.Method == "GET" {
+			r.healthHandler.HandleLivenessCheck(w, req)
+			return true
+		}
+	}
+	return false
 }

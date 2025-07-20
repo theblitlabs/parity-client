@@ -361,6 +361,111 @@ curl -X POST http://localhost:3000/api/tasks \
   }'
 ```
 
+### Health Monitoring
+
+The parity client provides comprehensive health monitoring endpoints for operational visibility:
+
+#### Basic Health Check
+
+```bash
+# Command line health check
+parity-client health
+
+# HTTP health check
+curl http://localhost:3000/health
+```
+
+#### Detailed Health Information
+
+```bash
+# Get detailed health status
+parity-client health --detailed
+
+# HTTP detailed health check
+curl http://localhost:3000/health/detailed
+```
+
+#### Kubernetes-style Probes
+
+```bash
+# Readiness probe (for Kubernetes deployments)
+curl http://localhost:3000/health/ready
+
+# Liveness probe (for Kubernetes deployments)
+curl http://localhost:3000/health/live
+```
+
+#### Health Check Options
+
+```bash
+# Check health with custom endpoint
+parity-client health --endpoint http://your-server:8080
+
+# Set custom timeout
+parity-client health --timeout 30s
+
+# Get detailed information
+parity-client health --detailed
+```
+
+#### Health Check Response Format
+
+Basic health check response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "version": "v1.0.0",
+  "uptime": "2h30m15s",
+  "services": {
+    "blockchain": "configured",
+    "ipfs": "configured",
+    "runner": "configured"
+  }
+}
+```
+
+Detailed health check response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "version": "v1.0.0",
+  "uptime": "2h30m15s",
+  "services": {
+    "blockchain": {
+      "status": "healthy",
+      "last_check": "2024-01-15T10:29:55Z",
+      "latency": "125ms"
+    },
+    "ipfs": {
+      "status": "healthy",
+      "last_check": "2024-01-15T10:29:58Z",
+      "latency": "45ms"
+    },
+    "runner": {
+      "status": "healthy",
+      "last_check": "2024-01-15T10:30:00Z",
+      "latency": "78ms"
+    }
+  },
+  "config": {
+    "server_host": "0.0.0.0",
+    "server_port": 3000,
+    "blockchain_rpc": "https://your-blockchain-node.com",
+    "ipfs_endpoint": "http://localhost:5001",
+    "runner_url": "http://localhost:8080"
+  }
+}
+```
+
+**Note**: All health check data is real-time:
+- **Uptime**: Actual application uptime since start
+- **Version**: Real version from git tags and build info
+- **Service Status**: Live connectivity tests to blockchain, IPFS, and runner services
+- **Latency**: Actual response times from service health checks
+- **Configuration**: Real configuration values from your environment
+
 ## Configuration Files
 
 ### Model Configuration Examples
@@ -469,10 +574,12 @@ parity-client fl create-session \
 
 ### Health & Status Endpoints
 
-| Method | Endpoint    | Description   |
-| ------ | ----------- | ------------- |
-| GET    | /api/health | Health check  |
-| GET    | /api/status | System status |
+| Method | Endpoint           | Description                    |
+| ------ | ------------------ | ------------------------------ |
+| GET    | /health            | Basic health check             |
+| GET    | /health/detailed   | Detailed health information    |
+| GET    | /health/ready      | Readiness probe                |
+| GET    | /health/live       | Liveness probe                 |
 
 ## Development
 
