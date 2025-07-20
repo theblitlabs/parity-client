@@ -28,9 +28,6 @@ issues:
     - text: "unsupported version: 2"
       linters:
         - typecheck
-        - govet
-        - ineffassign
-        - unused
 
 output:
   sort-results: true
@@ -39,4 +36,4 @@ linters-settings:
   gofmt:
     simplify: true
   goimports:
-    local-prefixes: "github.com/theblitlabs/parity-client"
+    local-prefixes: "github.com/theblitlabs/parity-runner"
