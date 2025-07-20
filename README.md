@@ -110,16 +110,16 @@ SERVER_HOST="0.0.0.0"
 SERVER_PORT=3000
 SERVER_ENDPOINT="/api"
 
-# Filecoin Network Configuration (Filecoin Calibration Testnet)
-FILECOIN_RPC=https://calibration.filfox.info/rpc/v1
-FILECOIN_CHAIN_ID=314159
-FILECOIN_TOKEN_ADDRESS=0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0
-FILECOIN_STAKE_WALLET_ADDRESS=0x1fd2fA91C1eE96d128A35955EC3B496D7184c80A
+# Blockchain Network Configuration
+BLOCKCHAIN_RPC=https://your-blockchain-node.com
+BLOCKCHAIN_CHAIN_ID=1
+TOKEN_ADDRESS=0x1234567890123456789012345678901234567890
+TOKEN_SYMBOL=PRTY
+STAKE_WALLET_ADDRESS=0xabcdefabcdefabcdefabcdefabcdefabcdefabcd
 
-# IPFS/Filecoin Storage Configuration
-FILECOIN_IPFS_ENDPOINT=http://localhost:5001
-FILECOIN_GATEWAY_URL=https://gateway.pinata.cloud
-FILECOIN_CREATE_STORAGE_DEALS=false
+# IPFS Storage Configuration
+IPFS_ENDPOINT=http://localhost:5001
+GATEWAY_URL=https://gateway.pinata.cloud
 
 # Runner Configuration
 RUNNER_SERVER_URL="http://localhost:8080"
@@ -257,7 +257,7 @@ parity-client fl create-session-with-data ./mnist_dataset.csv \
 parity-client fl list-sessions
 
 # List sessions by creator
-parity-client fl list-sessions --creator-address 0x123...
+parity-client fl list-sessions --creator-address 0x1234567890123456789012345678901234567890
 
 # Get detailed session info
 parity-client fl get-session SESSION_ID
@@ -455,7 +455,7 @@ parity-client fl create-session \
 
 | Method | Endpoint                    | Description                  |
 | ------ | --------------------------- | ---------------------------- |
-| POST   | /api/storage/upload         | Upload file to IPFS/Filecoin |
+| POST   | /api/storage/upload         | Upload file to IPFS |
 | GET    | /api/storage/download/{cid} | Download file by CID         |
 | GET    | /api/storage/info/{cid}     | Get file information         |
 | POST   | /api/storage/pin/{cid}      | Pin file to IPFS             |
@@ -526,7 +526,7 @@ make watch
 
 3. **Connection Issues**
 
-   - Ensure your Filecoin RPC URL is correct and accessible
+   - Ensure your blockchain RPC URL is correct and accessible
    - Check your internet connection and firewall settings
    - Verify FL server URL in configuration
 

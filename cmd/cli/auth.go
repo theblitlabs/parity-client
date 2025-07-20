@@ -59,10 +59,10 @@ func ExecuteAuth(privateKey string, configPath string) error {
 	}
 
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
-		RPCURL:       cfg.FilecoinNetwork.RPC,
-		ChainID:      cfg.FilecoinNetwork.ChainID,
+		RPCURL:       cfg.BlockchainNetwork.RPC,
+		ChainID:      cfg.BlockchainNetwork.ChainID,
 		PrivateKey:   privateKey,
-		TokenAddress: common.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+		TokenAddress: common.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
 	})
 	if err != nil {
 		return fmt.Errorf("invalid private key: %w", err)

@@ -63,14 +63,14 @@ func initializeWallet(configPath string, log zerolog.Logger) (*config.Config, *w
 	}
 
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
-		RPCURL:       cfg.FilecoinNetwork.RPC,
-		ChainID:      cfg.FilecoinNetwork.ChainID,
+		RPCURL:       cfg.BlockchainNetwork.RPC,
+		ChainID:      cfg.BlockchainNetwork.ChainID,
 		PrivateKey:   common.Bytes2Hex(crypto.FromECDSA(privateKey)),
-		TokenAddress: common.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
-		StakeAddress: common.HexToAddress(cfg.FilecoinNetwork.StakeWalletAddress),
+		TokenAddress: common.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
+		StakeAddress: common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress),
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create Filecoin client")
+		log.Fatal().Err(err).Msg("Failed to create Ethereum client")
 		return nil, nil, err
 	}
 
@@ -78,7 +78,7 @@ func initializeWallet(configPath string, log zerolog.Logger) (*config.Config, *w
 }
 
 func displayTokenBalance(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, log zerolog.Logger) {
-	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.FilecoinNetwork.TokenAddress))
+	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.BlockchainNetwork.TokenAddress))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create token contract")
 		return
@@ -97,7 +97,7 @@ func displayTokenBalance(ctx context.Context, walletAdapter *wallet.Adapter, cfg
 
 	log.Info().
 		Str("wallet_address", walletAdapter.GetAddress().Hex()).
-		Str("balance", tokenBalance.String()+" USDFC").
+		Str("balance", tokenBalance.String()+" "+cfg.BlockchainNetwork.TokenSymbol).
 		Msg("Wallet token balance")
 }
 
@@ -113,8 +113,8 @@ func getDeviceID(log zerolog.Logger) (string, error) {
 
 func displayStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, deviceID string, log zerolog.Logger) {
 	stakeWallet, err := walletAdapter.NewStakeWallet(
-		common.HexToAddress(cfg.FilecoinNetwork.StakeWalletAddress),
-		common.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+		common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress),
+		common.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create stake wallet contract")
@@ -141,18 +141,18 @@ func displayStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *c
 
 func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, stakeInfo walletsdk.StakeInfo, log zerolog.Logger) {
 	log.Info().
-		Str("amount", stakeInfo.Amount.String()+" USDFC").
+		Str("amount", stakeInfo.Amount.String()+" PRTY").
 		Str("device_id", stakeInfo.DeviceID).
 		Str("wallet_address", stakeInfo.WalletAddress.Hex()).
 		Msg("Current stake info")
 
-	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.FilecoinNetwork.TokenAddress))
+	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.BlockchainNetwork.TokenAddress))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create token contract")
 		return
 	}
 
-	contractBalance, err := walletAdapter.GetTokenBalance(ctx, token, common.HexToAddress(cfg.FilecoinNetwork.StakeWalletAddress))
+	contractBalance, err := walletAdapter.GetTokenBalance(ctx, token, common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress))
 	if err != nil {
 		select {
 		case <-ctx.Done():
@@ -164,7 +164,7 @@ func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter
 	}
 
 	log.Info().
-		Str("balance", contractBalance.String()+" USDFC").
-		Str("contract_address", cfg.FilecoinNetwork.StakeWalletAddress).
+		Str("balance", contractBalance.String()+" PRTY").
+		Str("contract_address", cfg.BlockchainNetwork.StakeWalletAddress).
 		Msg("Contract token balance")
 }

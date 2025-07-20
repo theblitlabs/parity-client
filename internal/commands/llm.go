@@ -328,9 +328,9 @@ func getLLMCreatorAddress(cfg *config.Config) (string, error) {
 	}
 
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
-		RPCURL:       cfg.FilecoinNetwork.RPC,
-		ChainID:      cfg.FilecoinNetwork.ChainID,
-		TokenAddress: ethcommon.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+		RPCURL:       cfg.BlockchainNetwork.RPC,
+		ChainID:      cfg.BlockchainNetwork.ChainID,
+		TokenAddress: ethcommon.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
 		PrivateKey:   privateKey,
 	})
 	if err != nil {

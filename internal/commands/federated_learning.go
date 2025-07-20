@@ -395,7 +395,7 @@ var submitUpdateCmd = &cobra.Command{
 var createSessionWithDataCmd = &cobra.Command{
 	Use:   "create-session-with-data [data-path]",
 	Short: "Upload training data and create federated learning session",
-	Long:  `Upload training data to IPFS/Filecoin and create a federated learning session in one step`,
+	Long:  `Upload training data to IPFS and create a federated learning session in one step`,
 	Args:  cobra.ExactArgs(1),
 	Example: `  # Upload dataset file and create session
   parity-client fl create-session-with-data ./dataset.csv --name "Image Classification" --model-type cnn --total-rounds 5
@@ -451,14 +451,14 @@ var createSessionWithDataCmd = &cobra.Command{
 		overlapRatio, _ := cmd.Flags().GetFloat64("overlap-ratio")
 
 		// Initialize storage service
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		filecoinService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			return fmt.Errorf("failed to initialize Filecoin service: %w", err)
+			return fmt.Errorf("failed to initialize blockchain storage service: %w", err)
 		}
 
-		// Upload data to IPFS/Filecoin
+		// Upload data to IPFS
 		log := gologger.Get()
-		log.Info().Str("path", dataPath).Msg("Uploading training data to IPFS/Filecoin")
+		log.Info().Str("path", dataPath).Msg("Uploading training data to IPFS")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
@@ -594,10 +594,10 @@ func getCreatorAddress(cfg *config.Config) (string, error) {
 	}
 
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
-		RPCURL:       cfg.FilecoinNetwork.RPC,
-		ChainID:      cfg.FilecoinNetwork.ChainID,
+		RPCURL:       cfg.BlockchainNetwork.RPC,
+		ChainID:      cfg.BlockchainNetwork.ChainID,
 		PrivateKey:   privateKey,
-		TokenAddress: ethcommon.HexToAddress(cfg.FilecoinNetwork.TokenAddress),
+		TokenAddress: ethcommon.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create wallet adapter: %w", err)
@@ -765,7 +765,7 @@ func init() {
 	createSessionCmd.Flags().Float64P("learning-rate", "l", 0, "Learning rate (required)")
 	createSessionCmd.Flags().IntP("batch-size", "b", 0, "Batch size (required)")
 	createSessionCmd.Flags().IntP("local-epochs", "e", 0, "Local epochs (required)")
-	createSessionCmd.Flags().String("dataset-cid", "", "IPFS/Filecoin dataset CID (required)")
+	createSessionCmd.Flags().String("dataset-cid", "", "IPFS dataset CID (required)")
 	createSessionCmd.Flags().String("data-format", "csv", "Data format (csv, json, parquet)")
 	createSessionCmd.Flags().String("split-strategy", "random", "Data split strategy (random, stratified, sequential, non_iid, label_skew)")
 	createSessionCmd.Flags().String("config-file", "", "Custom model configuration file")

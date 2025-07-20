@@ -14,33 +14,31 @@ import (
 	"github.com/theblitlabs/parity-client/internal/config"
 )
 
-type FilecoinService struct {
-	ipfsClient  *shell.Shell
-	gatewayURL  string
-	storageDeal bool
+type BlockchainService struct {
+	ipfsClient *shell.Shell
+	gatewayURL string
 }
 
-func NewFilecoinService(cfg *config.Config) (*FilecoinService, error) {
-	ipfsEndpoint := cfg.FilecoinNetwork.IPFSEndpoint
+func NewBlockchainService(cfg *config.Config) (*BlockchainService, error) {
+	ipfsEndpoint := cfg.BlockchainNetwork.IPFSEndpoint
 	if ipfsEndpoint == "" {
 		ipfsEndpoint = "localhost:5001" // fallback
 	}
 
-	gatewayURL := cfg.FilecoinNetwork.GatewayURL
+	gatewayURL := cfg.BlockchainNetwork.GatewayURL
 	if gatewayURL == "" {
 		gatewayURL = "https://ipfs.io" // fallback
 	}
 
 	ipfsClient := shell.NewShell(ipfsEndpoint)
 
-	return &FilecoinService{
-		ipfsClient:  ipfsClient,
-		gatewayURL:  gatewayURL,
-		storageDeal: cfg.FilecoinNetwork.CreateStorageDeals,
+	return &BlockchainService{
+		ipfsClient: ipfsClient,
+		gatewayURL: gatewayURL,
 	}, nil
 }
 
-func (f *FilecoinService) UploadFile(ctx context.Context, filePath string) (string, error) {
+func (f *BlockchainService) UploadFile(ctx context.Context, filePath string) (string, error) {
 	log := gologger.Get()
 
 	file, err := os.Open(filePath)
@@ -68,24 +66,16 @@ func (f *FilecoinService) UploadFile(ctx context.Context, filePath string) (stri
 		return "", fmt.Errorf("failed to upload file to IPFS: %w", err)
 	}
 
-	if f.storageDeal {
-		if err := f.createStorageDeal(ctx, cid); err != nil {
-			log.Warn().Err(err).
-				Str("cid", cid).
-				Msg("Failed to create storage deal, file stored on IPFS only")
-		}
-	}
-
 	log.Info().
 		Str("file", filePath).
 		Str("cid", cid).
 		Str("gateway_url", f.GetFileURL(cid)).
-		Msg("Successfully uploaded file to IPFS/Filecoin")
+		Msg("Successfully uploaded file to IPFS")
 
 	return cid, nil
 }
 
-func (f *FilecoinService) UploadData(ctx context.Context, data []byte, filename string) (string, error) {
+func (f *BlockchainService) UploadData(ctx context.Context, data []byte, filename string) (string, error) {
 	log := gologger.Get()
 
 	uniqueFilename := fmt.Sprintf("%s-%s", filename, uuid.New().String()[:8])
@@ -105,24 +95,16 @@ func (f *FilecoinService) UploadData(ctx context.Context, data []byte, filename 
 		return "", fmt.Errorf("failed to upload data to IPFS: %w", err)
 	}
 
-	if f.storageDeal {
-		if err := f.createStorageDeal(ctx, cid); err != nil {
-			log.Warn().Err(err).
-				Str("cid", cid).
-				Msg("Failed to create storage deal, data stored on IPFS only")
-		}
-	}
-
 	log.Info().
 		Str("filename", uniqueFilename).
 		Str("cid", cid).
 		Str("gateway_url", f.GetFileURL(cid)).
-		Msg("Successfully uploaded data to IPFS/Filecoin")
+		Msg("Successfully uploaded data to IPFS")
 
 	return cid, nil
 }
 
-func (f *FilecoinService) UploadDirectory(ctx context.Context, dirPath string) (string, error) {
+func (f *BlockchainService) UploadDirectory(ctx context.Context, dirPath string) (string, error) {
 	log := gologger.Get()
 
 	log.Info().
@@ -137,24 +119,16 @@ func (f *FilecoinService) UploadDirectory(ctx context.Context, dirPath string) (
 		return "", fmt.Errorf("failed to upload directory to IPFS: %w", err)
 	}
 
-	if f.storageDeal {
-		if err := f.createStorageDeal(ctx, cid); err != nil {
-			log.Warn().Err(err).
-				Str("cid", cid).
-				Msg("Failed to create storage deal, directory stored on IPFS only")
-		}
-	}
-
 	log.Info().
 		Str("directory", dirPath).
 		Str("cid", cid).
 		Str("gateway_url", f.GetFileURL(cid)).
-		Msg("Successfully uploaded directory to IPFS/Filecoin")
+		Msg("Successfully uploaded directory to IPFS")
 
 	return cid, nil
 }
 
-func (f *FilecoinService) DownloadFile(ctx context.Context, cid string, outputPath string) error {
+func (f *BlockchainService) DownloadFile(ctx context.Context, cid string, outputPath string) error {
 	log := gologger.Get()
 
 	log.Info().
@@ -195,32 +169,18 @@ func (f *FilecoinService) DownloadFile(ctx context.Context, cid string, outputPa
 	return nil
 }
 
-func (f *FilecoinService) GetFileURL(cid string) string {
+func (f *BlockchainService) GetFileURL(cid string) string {
 	return fmt.Sprintf("%s/ipfs/%s", f.gatewayURL, cid)
 }
 
-func (f *FilecoinService) PinFile(cid string) error {
+func (f *BlockchainService) PinFile(cid string) error {
 	return f.ipfsClient.Pin(cid)
 }
 
-func (f *FilecoinService) UnpinFile(cid string) error {
+func (f *BlockchainService) UnpinFile(cid string) error {
 	return f.ipfsClient.Unpin(cid)
 }
 
-func (f *FilecoinService) GetFileInfo(cid string) (*shell.ObjectStats, error) {
+func (f *BlockchainService) GetFileInfo(cid string) (*shell.ObjectStats, error) {
 	return f.ipfsClient.ObjectStat(cid)
-}
-
-func (f *FilecoinService) createStorageDeal(ctx context.Context, cid string) error {
-	log := gologger.Get()
-
-	log.Info().
-		Str("cid", cid).
-		Msg("Creating storage deal for file")
-
-	// This is a placeholder for actual Filecoin storage deal creation
-	// In a real implementation, this would interact with Filecoin storage providers
-	// to create storage deals for the uploaded content
-
-	return nil
 }

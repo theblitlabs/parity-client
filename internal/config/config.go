@@ -10,7 +10,7 @@ import (
 
 type Config struct {
 	Server            ServerConfig            `mapstructure:"SERVER"`
-	FilecoinNetwork   FilecoinNetworkConfig   `mapstructure:"FILECOIN_NETWORK"`
+	BlockchainNetwork BlockchainNetworkConfig `mapstructure:"BLOCKCHAIN_NETWORK"`
 	Runner            RunnerConfig            `mapstructure:"RUNNER"`
 	FederatedLearning FederatedLearningConfig `mapstructure:"FL"`
 }
@@ -21,14 +21,14 @@ type ServerConfig struct {
 	Endpoint string `mapstructure:"ENDPOINT"`
 }
 
-type FilecoinNetworkConfig struct {
+type BlockchainNetworkConfig struct {
 	RPC                string `mapstructure:"RPC"`
 	ChainID            int64  `mapstructure:"CHAIN_ID"`
 	TokenAddress       string `mapstructure:"TOKEN_ADDRESS"`
+	TokenSymbol        string `mapstructure:"TOKEN_SYMBOL"`
 	StakeWalletAddress string `mapstructure:"STAKE_WALLET_ADDRESS"`
 	IPFSEndpoint       string `mapstructure:"IPFS_ENDPOINT"`
 	GatewayURL         string `mapstructure:"GATEWAY_URL"`
-	CreateStorageDeals bool   `mapstructure:"CREATE_STORAGE_DEALS"`
 }
 
 type FederatedLearningConfig struct {
@@ -101,14 +101,14 @@ func loadConfigFile(path string) (*Config, error) {
 		"ENDPOINT": v.GetString("SERVER_ENDPOINT"),
 	})
 
-	v.SetDefault("FILECOIN_NETWORK", map[string]interface{}{
-		"RPC":                  v.GetString("FILECOIN_RPC"),
-		"CHAIN_ID":             v.GetInt64("FILECOIN_CHAIN_ID"),
-		"TOKEN_ADDRESS":        v.GetString("FILECOIN_TOKEN_ADDRESS"),
-		"STAKE_WALLET_ADDRESS": v.GetString("FILECOIN_STAKE_WALLET_ADDRESS"),
-		"IPFS_ENDPOINT":        v.GetString("FILECOIN_IPFS_ENDPOINT"),
-		"GATEWAY_URL":          v.GetString("FILECOIN_GATEWAY_URL"),
-		"CREATE_STORAGE_DEALS": v.GetBool("FILECOIN_CREATE_STORAGE_DEALS"),
+	v.SetDefault("BLOCKCHAIN_NETWORK", map[string]interface{}{
+		"RPC":                  v.GetString("BLOCKCHAIN_RPC"),
+		"CHAIN_ID":             v.GetInt64("BLOCKCHAIN_CHAIN_ID"),
+		"TOKEN_ADDRESS":        v.GetString("TOKEN_ADDRESS"),
+		"TOKEN_SYMBOL":         v.GetString("TOKEN_SYMBOL"),
+		"STAKE_WALLET_ADDRESS": v.GetString("STAKE_WALLET_ADDRESS"),
+		"IPFS_ENDPOINT":        v.GetString("IPFS_ENDPOINT"),
+		"GATEWAY_URL":          v.GetString("GATEWAY_URL"),
 	})
 
 	v.SetDefault("RUNNER", map[string]interface{}{

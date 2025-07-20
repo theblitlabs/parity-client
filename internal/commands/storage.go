@@ -15,13 +15,13 @@ import (
 
 var storageCmd = &cobra.Command{
 	Use:   "storage",
-	Short: "Manage IPFS/Filecoin storage operations",
-	Long:  `Upload, download, and manage files on IPFS and Filecoin for federated learning training data`,
+	Short: "Manage IPFS storage operations",
+	Long:  `Upload, download, and manage files on IPFS for federated learning training data`,
 }
 
 var uploadFileCmd = &cobra.Command{
 	Use:   "upload-file [file-path]",
-	Short: "Upload a file to IPFS/Filecoin",
+	Short: "Upload a file to IPFS",
 	Args:  cobra.ExactArgs(1),
 	Example: `  # Upload a dataset file
   parity-client storage upload-file /path/to/dataset.csv
@@ -47,35 +47,35 @@ var uploadFileCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to load config")
 		}
 
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		blockchainService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Filecoin service")
+			log.Fatal().Err(err).Msg("Failed to initialize blockchain storage service")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
 		if customName != "" {
-			log.Info().Str("file", filePath).Str("name", customName).Msg("Starting file upload to IPFS/Filecoin with custom name")
+			log.Info().Str("file", filePath).Str("name", customName).Msg("Starting file upload to IPFS with custom name")
 		} else {
-			log.Info().Str("file", filePath).Msg("Starting file upload to IPFS/Filecoin")
+			log.Info().Str("file", filePath).Msg("Starting file upload to IPFS")
 		}
 
-		cid, err := filecoinService.UploadFile(ctx, filePath)
+		cid, err := blockchainService.UploadFile(ctx, filePath)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to upload file")
 		}
 
 		// Pin file if requested
 		if shouldPin {
-			if err := filecoinService.PinFile(cid); err != nil {
+			if err := blockchainService.PinFile(cid); err != nil {
 				log.Warn().Err(err).Msg("Failed to pin file, but upload was successful")
 			} else {
 				log.Info().Str("cid", cid).Msg("File pinned successfully")
 			}
 		}
 
-		fileUrl := filecoinService.GetFileURL(cid)
+		fileUrl := blockchainService.GetFileURL(cid)
 
 		log.Info().
 			Str("file", filePath).
@@ -99,7 +99,7 @@ var uploadFileCmd = &cobra.Command{
 
 var uploadDirectoryCmd = &cobra.Command{
 	Use:   "upload-dir [directory-path]",
-	Short: "Upload a directory to IPFS/Filecoin",
+	Short: "Upload a directory to IPFS",
 	Args:  cobra.ExactArgs(1),
 	Example: `  # Upload a dataset directory
   parity-client storage upload-dir /path/to/dataset/
@@ -124,26 +124,26 @@ var uploadDirectoryCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to load config")
 		}
 
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		blockchainService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Filecoin service")
+			log.Fatal().Err(err).Msg("Failed to initialize blockchain storage service")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 
 		if shouldCompress {
-			log.Info().Str("directory", dirPath).Msg("Starting directory compression and upload to IPFS/Filecoin")
+			log.Info().Str("directory", dirPath).Msg("Starting directory compression and upload to IPFS")
 		} else {
-			log.Info().Str("directory", dirPath).Msg("Starting directory upload to IPFS/Filecoin")
+			log.Info().Str("directory", dirPath).Msg("Starting directory upload to IPFS")
 		}
 
-		cid, err := filecoinService.UploadDirectory(ctx, dirPath)
+		cid, err := blockchainService.UploadDirectory(ctx, dirPath)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to upload directory")
 		}
 
-		dirUrl := filecoinService.GetFileURL(cid)
+		dirUrl := blockchainService.GetFileURL(cid)
 
 		log.Info().
 			Str("directory", dirPath).
@@ -164,7 +164,7 @@ var uploadDirectoryCmd = &cobra.Command{
 
 var downloadFileCmd = &cobra.Command{
 	Use:   "download [cid] [output-path]",
-	Short: "Download a file from IPFS/Filecoin",
+	Short: "Download a file from IPFS",
 	Args:  cobra.ExactArgs(2),
 	Example: `  # Download a file by CID
   parity-client storage download QmX5Y... ./downloaded-file.csv
@@ -184,9 +184,9 @@ var downloadFileCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to load config")
 		}
 
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		blockchainService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Filecoin service")
+			log.Fatal().Err(err).Msg("Failed to initialize blockchain storage service")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -195,9 +195,9 @@ var downloadFileCmd = &cobra.Command{
 		log.Info().
 			Str("cid", cid).
 			Str("output", outputPath).
-			Msg("Starting file download from IPFS/Filecoin")
+			Msg("Starting file download from IPFS")
 
-		err = filecoinService.DownloadFile(ctx, cid, outputPath)
+		err = blockchainService.DownloadFile(ctx, cid, outputPath)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to download file")
 		}
@@ -229,12 +229,12 @@ var fileInfoCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to load config")
 		}
 
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		blockchainService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Filecoin service")
+			log.Fatal().Err(err).Msg("Failed to initialize blockchain storage service")
 		}
 
-		info, err := filecoinService.GetFileInfo(cid)
+		info, err := blockchainService.GetFileInfo(cid)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to get file info")
 		}
@@ -243,7 +243,7 @@ var fileInfoCmd = &cobra.Command{
 		fmt.Printf("CID: %s\n", cid)
 		fmt.Printf("Size: %d bytes\n", info.CumulativeSize)
 		fmt.Printf("Blocks: %d\n", info.NumLinks)
-		fmt.Printf("URL: %s\n", filecoinService.GetFileURL(cid))
+		fmt.Printf("URL: %s\n", blockchainService.GetFileURL(cid))
 	},
 }
 
@@ -265,12 +265,12 @@ var pinFileCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to load config")
 		}
 
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		blockchainService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Filecoin service")
+			log.Fatal().Err(err).Msg("Failed to initialize blockchain storage service")
 		}
 
-		err = filecoinService.PinFile(cid)
+		err = blockchainService.PinFile(cid)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to pin file")
 		}
@@ -297,12 +297,12 @@ var unpinFileCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Failed to load config")
 		}
 
-		filecoinService, err := storage.NewFilecoinService(cfg)
+		blockchainService, err := storage.NewBlockchainService(cfg)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize Filecoin service")
+			log.Fatal().Err(err).Msg("Failed to initialize blockchain storage service")
 		}
 
-		err = filecoinService.UnpinFile(cid)
+		err = blockchainService.UnpinFile(cid)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to unpin file")
 		}
