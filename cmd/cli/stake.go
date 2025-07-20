@@ -62,17 +62,17 @@ func executeStake(amount float64, configPath string) {
 	}
 
 	walletAdapter, err := wallet.NewAdapter(walletsdk.ClientConfig{
-		RPCURL:       cfg.Ethereum.RPC,
-		ChainID:      cfg.Ethereum.ChainID,
+		RPCURL:       cfg.BlockchainNetwork.RPC,
+		ChainID:      cfg.BlockchainNetwork.ChainID,
 		PrivateKey:   common.Bytes2Hex(crypto.FromECDSA(privateKey)),
-		TokenAddress: common.HexToAddress(cfg.Ethereum.TokenAddress),
-		StakeAddress: common.HexToAddress(cfg.Ethereum.StakeWalletAddress),
+		TokenAddress: common.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
+		StakeAddress: common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress),
 	})
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Str("rpc_endpoint", cfg.Ethereum.RPC).
-			Int64("chain_id", cfg.Ethereum.ChainID).
+			Str("rpc_endpoint", cfg.BlockchainNetwork.RPC).
+			Int64("chain_id", cfg.BlockchainNetwork.ChainID).
 			Msg("Failed to connect to blockchain - please check your network connection")
 		return
 	}
@@ -91,8 +91,8 @@ func executeStake(amount float64, configPath string) {
 		Str("wallet", walletAdapter.GetAddress().Hex()).
 		Msg("Device verified successfully")
 
-	tokenAddr := common.HexToAddress(cfg.Ethereum.TokenAddress)
-	stakeWalletAddr := common.HexToAddress(cfg.Ethereum.StakeWalletAddress)
+	tokenAddr := common.HexToAddress(cfg.BlockchainNetwork.TokenAddress)
+	stakeWalletAddr := common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress)
 
 	token, err := walletAdapter.NewParityToken(tokenAddr)
 	if err != nil {
@@ -117,14 +117,14 @@ func executeStake(amount float64, configPath string) {
 	amountToStake := amountWei(amount)
 	if balance.Cmp(amountToStake) < 0 {
 		log.Fatal().
-			Str("current_balance", utils.FormatEther(balance)+" PRTY").
-			Str("required_amount", utils.FormatEther(amountToStake)+" PRTY").
-			Msg("Insufficient token balance - please ensure you have enough PRTY tokens")
+			Str("current_balance", utils.FormatEther(balance)+" "+cfg.BlockchainNetwork.TokenSymbol).
+			Str("required_amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
+			Msg("Insufficient token balance - please ensure you have enough " + cfg.BlockchainNetwork.TokenSymbol + " tokens")
 		return
 	}
 
 	log.Info().
-		Str("balance", utils.FormatEther(balance)+" PRTY").
+		Str("balance", utils.FormatEther(balance)+" "+cfg.BlockchainNetwork.TokenSymbol).
 		Str("token_address", tokenAddr.Hex()).
 		Msg("Current token balance verified")
 
@@ -140,7 +140,7 @@ func executeStake(amount float64, configPath string) {
 
 	if allowance.Cmp(amountToStake) < 0 {
 		log.Info().
-			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
+			Str("amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
 			Msg("Approving token spending...")
 
 		txOpts, err := walletAdapter.GetTransactOpts()
@@ -155,14 +155,14 @@ func executeStake(amount float64, configPath string) {
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Str("amount", utils.FormatEther(amountToStake)+" PRTY").
+				Str("amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
 				Msg("Failed to approve token spending - please try again")
 			return
 		}
 
 		log.Info().
 			Str("tx_hash", tx.Hash().Hex()).
-			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
+			Str("amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
 			Msg("Token approval submitted - waiting for confirmation...")
 
 		ctx := context.Background()
@@ -190,7 +190,7 @@ func executeStake(amount float64, configPath string) {
 	}
 
 	log.Info().
-		Str("amount", utils.FormatEther(amountToStake)+" PRTY").
+		Str("amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
 		Str("device_id", deviceID).
 		Msg("Submitting stake transaction...")
 
@@ -207,7 +207,7 @@ func executeStake(amount float64, configPath string) {
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Str("amount", utils.FormatEther(amountToStake)+" PRTY").
+			Str("amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
 			Str("device_id", deviceID).
 			Msg("Failed to submit stake transaction - please try again")
 		return
@@ -215,7 +215,7 @@ func executeStake(amount float64, configPath string) {
 
 	log.Info().
 		Str("tx_hash", tx.Hash().Hex()).
-		Str("amount", utils.FormatEther(amountToStake)+" PRTY").
+		Str("amount", utils.FormatEther(amountToStake)+" "+cfg.BlockchainNetwork.TokenSymbol).
 		Str("device_id", deviceID).
 		Msg("Stake transaction submitted successfully")
 }

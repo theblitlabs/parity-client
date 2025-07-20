@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -123,7 +124,9 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 		return fmt.Errorf("failed to write image data: %v", err)
 	}
 
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close writer: %v", err)
+	}
 
 	s.log.Debug().
 		Str("contentType", writer.FormDataContentType()).
@@ -150,7 +153,11 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 	if err != nil {
 		return fmt.Errorf("failed to send request to server: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, err := io.ReadAll(resp.Body)
@@ -237,7 +244,9 @@ func (s *DockerService) UploadTask(taskData map[string]interface{}, serverURL st
 		return fmt.Errorf("failed to encode task request: %v", err)
 	}
 
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close writer: %v", err)
+	}
 
 	s.log.Debug().
 		Str("contentType", writer.FormDataContentType()).
@@ -264,7 +273,11 @@ func (s *DockerService) UploadTask(taskData map[string]interface{}, serverURL st
 	if err != nil {
 		return fmt.Errorf("failed to send request to server: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, err := io.ReadAll(resp.Body)

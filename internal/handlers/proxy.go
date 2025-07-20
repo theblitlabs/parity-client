@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -32,7 +33,7 @@ func newProxyHandler(serverURL, deviceID, creatorAddr string) *proxyHandler {
 
 // forwardRequest forwards an HTTP request to the target server
 func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, path string) error {
-	targetURL := fmt.Sprintf("%s/%s", p.serverURL, path)
+	targetURL := fmt.Sprintf("%s/api/%s", p.serverURL, path)
 
 	proxyReq, err := http.NewRequest(req.Method, targetURL, req.Body)
 	if err != nil {
@@ -48,7 +49,11 @@ func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, 
 	if err != nil {
 		return fmt.Errorf("error forwarding request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	types.CopyHeaders(w.Header(), resp.Header)
 

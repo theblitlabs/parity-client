@@ -62,7 +62,7 @@ func (h *TaskHandler) ValidateAndProcessTask(w http.ResponseWriter, req *task.Re
 		return fmt.Errorf("failed to save Docker image: %v", err)
 	}
 
-	uploadURL := fmt.Sprintf("%s/tasks", strings.TrimSuffix(h.config.Runner.ServerURL, "/"))
+	uploadURL := fmt.Sprintf("%s/api/v1/tasks", strings.TrimSuffix(h.config.Runner.ServerURL, "/"))
 	h.logger.Debug().Str("uploadURL", uploadURL).Msg("Uploading Docker image")
 
 	if err := h.docker.UploadImage(tarFile, taskData, uploadURL); err != nil {
