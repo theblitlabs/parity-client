@@ -68,30 +68,35 @@ func RunChain(port int, cmd *cobra.Command) {
 	log := gologger.Get().With().Str("component", "chain").Logger()
 
 	if err := client.IsPortAvailable(port); err != nil {
-		log.Fatal().Err(err).Int("port", port).Msg("Port is not available")
+		log.Error().Err(err).Int("port", port).Msg("Port is not available")
+		return
 	}
 
 	configPath, _ := cmd.Flags().GetString("config-path")
 	configManager := config.NewConfigManager(configPath)
 	cfg, err := configManager.GetConfig()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load config")
+		log.Error().Err(err).Msg("Failed to load config")
+		return
 	}
 
 	deviceIDManager := deviceid.NewManager(deviceid.Config{})
 	deviceID, err := deviceIDManager.VerifyDeviceID()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to verify device ID")
+		log.Error().Err(err).Msg("Failed to verify device ID")
+		return
 	}
 
 	creatorAddress, err := getCreatorAddress()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get creator address. Please authenticate first using 'auth' command")
+		log.Error().Err(err).Msg("Failed to get creator address. Please authenticate first using 'auth' command")
+		return
 	}
 
 	server := proxy.NewServer(cfg, deviceID, creatorAddress, port)
 	if err := server.Start(); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start chain proxy server")
+		log.Error().Err(err).Msg("Failed to start chain proxy server")
+		return
 	}
 }
 
