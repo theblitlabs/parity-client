@@ -18,10 +18,13 @@ import (
 
 func RunBalance(cmd *cobra.Command, args []string) {
 	configPath, _ := cmd.Flags().GetString("config-path")
-	executeBalance(configPath)
+	if err := executeBalance(configPath); err != nil {
+		log := gologger.Get()
+		log.Error().Err(err).Msg("Balance check failed")
+	}
 }
 
-func executeBalance(configPath string) {
+func executeBalance(configPath string) error {
 	log := gologger.Get().With().Str("component", "balance").Logger()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -29,36 +32,38 @@ func executeBalance(configPath string) {
 
 	cfg, walletAdapter, err := initializeWallet(configPath, log)
 	if err != nil {
-		return // Error already logged in initializeWallet
+		return err
 	}
 
-	displayTokenBalance(ctx, walletAdapter, cfg, log)
+	if err := displayTokenBalance(ctx, walletAdapter, cfg, log); err != nil {
+		return err
+	}
 
 	deviceID, err := getDeviceID(log)
 	if err != nil {
-		return
+		return err
 	}
 
-	displayStakeInfo(ctx, walletAdapter, cfg, deviceID, log)
+	return displayStakeInfo(ctx, walletAdapter, cfg, deviceID, log)
 }
 
 func initializeWallet(configPath string, log zerolog.Logger) (*config.Config, *wallet.Adapter, error) {
 	configManager := config.NewConfigManager(configPath)
 	cfg, err := configManager.GetConfig()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load config")
+		log.Error().Err(err).Msg("Failed to load config")
 		return nil, nil, err
 	}
 
 	keystoreAdapter, err := keystore.NewAdapter(nil)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create keystore")
+		log.Error().Err(err).Msg("Failed to create keystore")
 		return nil, nil, err
 	}
 
 	privateKey, err := keystoreAdapter.LoadPrivateKey()
 	if err != nil {
-		log.Fatal().Err(err).Msg("No private key found - please authenticate first using 'parity auth'")
+		log.Error().Err(err).Msg("No private key found - please authenticate first using 'parity auth'")
 		return nil, nil, err
 	}
 
@@ -70,76 +75,81 @@ func initializeWallet(configPath string, log zerolog.Logger) (*config.Config, *w
 		StakeAddress: common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress),
 	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create Ethereum client")
+		log.Error().Err(err).Msg("Failed to create Ethereum client")
 		return nil, nil, err
 	}
 
 	return cfg, walletAdapter, nil
 }
 
-func displayTokenBalance(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, log zerolog.Logger) {
+func displayTokenBalance(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, log zerolog.Logger) error {
 	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.BlockchainNetwork.TokenAddress))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create token contract")
-		return
+		log.Error().Err(err).Msg("Failed to create token contract")
+		return err
 	}
 
 	tokenBalance, err := walletAdapter.GetTokenBalance(ctx, token, walletAdapter.GetAddress())
 	if err != nil {
 		select {
 		case <-ctx.Done():
-			log.Fatal().Err(ctx.Err()).Msg("Operation timed out while getting token balance")
+			log.Error().Err(ctx.Err()).Msg("Operation timed out while getting token balance")
+			return ctx.Err()
 		default:
-			log.Fatal().Err(err).Msg("Failed to get token balance")
+			log.Error().Err(err).Msg("Failed to get token balance")
+			return err
 		}
-		return
 	}
 
 	log.Info().
 		Str("wallet_address", walletAdapter.GetAddress().Hex()).
 		Str("balance", tokenBalance.String()+" "+cfg.BlockchainNetwork.TokenSymbol).
 		Msg("Wallet token balance")
+
+	return nil
 }
 
 func getDeviceID(log zerolog.Logger) (string, error) {
 	deviceIDManager := deviceid.NewManager(deviceid.Config{})
 	deviceID, err := deviceIDManager.VerifyDeviceID()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get device ID")
+		log.Error().Err(err).Msg("Failed to get device ID")
 		return "", err
 	}
 	return deviceID, nil
 }
 
-func displayStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, deviceID string, log zerolog.Logger) {
+func displayStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, deviceID string, log zerolog.Logger) error {
 	stakeWallet, err := walletAdapter.NewStakeWallet(
 		common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress),
 		common.HexToAddress(cfg.BlockchainNetwork.TokenAddress),
 	)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create stake wallet contract")
-		return
+		log.Error().Err(err).Msg("Failed to create stake wallet contract")
+		return err
 	}
 
 	stakeInfo, err := walletAdapter.GetStakeInfo(ctx, stakeWallet, deviceID)
 	if err != nil {
 		select {
 		case <-ctx.Done():
-			log.Fatal().Err(ctx.Err()).Msg("Operation timed out while getting stake info")
+			log.Error().Err(ctx.Err()).Msg("Operation timed out while getting stake info")
+			return ctx.Err()
 		default:
-			log.Fatal().Err(err).Msg("Failed to get stake info")
+			log.Error().Err(err).Msg("Failed to get stake info")
+			return err
 		}
-		return
 	}
 
 	if stakeInfo.Exists {
-		displayExistingStakeInfo(ctx, walletAdapter, cfg, stakeInfo, log)
+		return displayExistingStakeInfo(ctx, walletAdapter, cfg, stakeInfo, log)
 	} else {
 		log.Info().Msg("No active stake found")
+		return nil
 	}
 }
 
-func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, stakeInfo walletsdk.StakeInfo, log zerolog.Logger) {
+func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter, cfg *config.Config, stakeInfo walletsdk.StakeInfo, log zerolog.Logger) error {
 	log.Info().
 		Str("amount", stakeInfo.Amount.String()+" PRTY").
 		Str("device_id", stakeInfo.DeviceID).
@@ -148,23 +158,26 @@ func displayExistingStakeInfo(ctx context.Context, walletAdapter *wallet.Adapter
 
 	token, err := walletAdapter.NewParityToken(common.HexToAddress(cfg.BlockchainNetwork.TokenAddress))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create token contract")
-		return
+		log.Error().Err(err).Msg("Failed to create token contract")
+		return err
 	}
 
 	contractBalance, err := walletAdapter.GetTokenBalance(ctx, token, common.HexToAddress(cfg.BlockchainNetwork.StakeWalletAddress))
 	if err != nil {
 		select {
 		case <-ctx.Done():
-			log.Fatal().Err(ctx.Err()).Msg("Operation timed out while getting contract balance")
+			log.Error().Err(ctx.Err()).Msg("Operation timed out while getting contract balance")
+			return ctx.Err()
 		default:
-			log.Fatal().Err(err).Msg("Failed to get contract balance")
+			log.Error().Err(err).Msg("Failed to get contract balance")
+			return err
 		}
-		return
 	}
 
 	log.Info().
 		Str("balance", contractBalance.String()+" PRTY").
 		Str("contract_address", cfg.BlockchainNetwork.StakeWalletAddress).
 		Msg("Contract token balance")
+
+	return nil
 }
