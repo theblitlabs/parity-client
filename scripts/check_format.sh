@@ -34,7 +34,7 @@ fi
 # Check imports if goimports is installed
 if [ -x "$GOIMPORTS_PATH" ]; then
   echo -e "\nChecking import formatting..."
-  IMPORT_ISSUES=$("$GOIMPORTS_PATH" -l -local github.com/theblitlabs/parity-runner .)
+  IMPORT_ISSUES=$("$GOIMPORTS_PATH" -l -local github.com/theblitlabs/parity-client .)
   if [ -n "$IMPORT_ISSUES" ]; then
     echo "The following files have import formatting issues:"
     echo "$IMPORT_ISSUES"

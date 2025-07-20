@@ -93,11 +93,11 @@ fmt: ## Format code using gofumpt (preferred) or gofmt
 imports: ## Fix imports formatting and add missing imports
 	@echo "Organizing imports..."
 	@if command -v $(GOIMPORTS) >/dev/null 2>&1; then \
-		$(GOIMPORTS) -w -local github.com/theblitlabs/parity-runner .; \
+		$(GOIMPORTS) -w -local github.com/theblitlabs/parity-client .; \
 	else \
 		echo "goimports not found. Installing..."; \
 		go install golang.org/x/tools/cmd/goimports@latest; \
-		$(GOIMPORTS) -w -local github.com/theblitlabs/parity-runner .; \
+		$(GOIMPORTS) -w -local github.com/theblitlabs/parity-client .; \
 	fi
 
 format: fmt imports ## Run all formatters (gofumpt + goimports)
