@@ -50,7 +50,14 @@ deps:
 	go mod download
 
 build: ## Build the application
-	$(GOBUILD) $(BUILD_FLAGS) -o $(BINARY_NAME) ./cmd
+	$(eval VERSION := $(shell git describe --tags --always --dirty))
+	$(eval COMMIT := $(shell git rev-parse HEAD))
+	$(eval BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S'))
+	$(GOBUILD) $(BUILD_FLAGS) \
+		-ldflags "-X github.com/theblitlabs/parity-client/internal/version.Version=$(VERSION) \
+		-X github.com/theblitlabs/parity-client/internal/version.CommitSHA=$(COMMIT) \
+		-X github.com/theblitlabs/parity-client/internal/version.BuildTime=$(BUILD_TIME)" \
+		-o $(BINARY_NAME) ./cmd
 	chmod +x $(BINARY_NAME)
 
 test: setup-coverage ## Run tests with coverage
@@ -72,6 +79,9 @@ balance:  ## Check token balances
 
 auth:  ## Authenticate with the network
 	$(GOCMD) run $(MAIN_PATH) auth
+
+health:  ## Check health status
+	$(GOCMD) run $(MAIN_PATH) health
 
 clean: ## Clean build files
 	rm -f $(BINARY_NAME)

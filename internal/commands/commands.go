@@ -9,5 +9,6 @@ func AddCommands(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(llmCmd)
 	rootCmd.AddCommand(flCmd)
 	rootCmd.AddCommand(storageCmd)
+	rootCmd.AddCommand(healthCmd)
 	rootCmd.AddCommand(GetReputationCommand())
 }
