@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -94,7 +95,11 @@ func (c *LLMClient) SubmitPrompt(ctx context.Context, prompt, modelName, creator
 	if err != nil {
 		return nil, fmt.Errorf("failed to submit prompt: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("prompt submission failed with status: %d", resp.StatusCode)
@@ -126,7 +131,11 @@ func (c *LLMClient) GetPrompt(ctx context.Context, promptID string) (*PromptResp
 	if err != nil {
 		return nil, fmt.Errorf("failed to get prompt: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("get prompt failed with status: %d", resp.StatusCode)
@@ -153,7 +162,11 @@ func (c *LLMClient) ListPrompts(ctx context.Context, limit, offset int) ([]*Prom
 	if err != nil {
 		return nil, fmt.Errorf("failed to list prompts: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("list prompts failed with status: %d", resp.StatusCode)
@@ -209,7 +222,11 @@ func (c *LLMClient) GetBillingMetrics(ctx context.Context) (*BillingMetricsRespo
 	if err != nil {
 		return nil, fmt.Errorf("failed to get billing metrics: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("get billing metrics failed with status: %d", resp.StatusCode)
@@ -234,7 +251,11 @@ func (c *LLMClient) GetAvailableModels(ctx context.Context) (*ModelsResponse, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available models: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("get available models failed with status: %d", resp.StatusCode)

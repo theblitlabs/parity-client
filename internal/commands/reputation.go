@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -110,7 +111,11 @@ ban status, and overall network standing. This is the primary command for networ
 		if err != nil {
 			return fmt.Errorf("failed to check eligibility: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("eligibility check failed with status: %d", resp.StatusCode)
@@ -161,7 +166,11 @@ and current standing in the network. Shows eligibility, ban status, and quality 
 		if err != nil {
 			return fmt.Errorf("failed to get reputation: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to get reputation with status: %d", resp.StatusCode)
@@ -197,7 +206,11 @@ banned runners, average reputation, and network quality indicators.`,
 		if err != nil {
 			return fmt.Errorf("failed to get network stats: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to get network stats with status: %d", resp.StatusCode)
@@ -250,7 +263,11 @@ Available types: overall, docker, llm, federated-learning`,
 		if err != nil {
 			return fmt.Errorf("failed to get leaderboard: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to get leaderboard with status: %d", resp.StatusCode)
@@ -303,7 +320,11 @@ failures, quality changes, and any malicious behavior reports.`,
 		if err != nil {
 			return fmt.Errorf("failed to get events: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to get events with status: %d", resp.StatusCode)
@@ -550,7 +571,11 @@ var monitoringAssignmentsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get monitoring assignments: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("server returned status %d", resp.StatusCode)
@@ -606,7 +631,11 @@ var monitoringStatsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get monitoring stats: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("server returned status %d", resp.StatusCode)
@@ -649,7 +678,11 @@ var monitoringMetricsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get monitoring metrics: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if closeErr := resp.Body.Close(); closeErr != nil {
+				log.Printf("Error closing response body: %v", closeErr)
+			}
+		}()
 
 		if resp.StatusCode == http.StatusNotFound {
 			fmt.Printf("No monitoring metrics found for runner: %s\n", runnerID)

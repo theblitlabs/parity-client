@@ -1,17 +1,15 @@
+version: 2
+
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
   disable:
     - exhaustruct # Can be noisy
     - wsl # Whitespace linting can be too strict
-    - gofmt # Temporarily disabled
-    - goimports # Temporarily disabled
 
 run:
   timeout: 5m

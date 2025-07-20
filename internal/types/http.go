@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -38,7 +39,11 @@ func CopyHeaders(dst, src http.Header) {
 }
 
 func ReadJSONBody(body io.ReadCloser, v interface{}) error {
-	defer body.Close()
+	defer func() {
+		if closeErr := body.Close(); closeErr != nil {
+			log.Printf("Error closing body: %v", closeErr)
+		}
+	}()
 	return json.NewDecoder(body).Decode(v)
 }
 

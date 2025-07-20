@@ -109,7 +109,11 @@ func (c *FederatedLearningClient) CreateSession(ctx context.Context, req *Create
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -135,7 +139,11 @@ func (c *FederatedLearningClient) ListSessions(ctx context.Context, creator stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to list sessions: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -156,7 +164,11 @@ func (c *FederatedLearningClient) GetSession(ctx context.Context, sessionID stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("session not found")
@@ -182,7 +194,11 @@ func (c *FederatedLearningClient) StartSession(ctx context.Context, sessionID st
 	if err != nil {
 		return fmt.Errorf("failed to start session: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -203,7 +219,11 @@ func (c *FederatedLearningClient) SubmitModelUpdate(ctx context.Context, req *Su
 	if err != nil {
 		return fmt.Errorf("failed to submit model update: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -219,7 +239,11 @@ func (c *FederatedLearningClient) GetTrainedModel(ctx context.Context, sessionID
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trained model: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusNotFound {
 		body, _ := io.ReadAll(resp.Body)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
@@ -93,8 +94,11 @@ var createSessionCmd = &cobra.Command{
 		modelConfig := map[string]interface{}{}
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
-				json.Unmarshal(data, &modelConfig)
-				fmt.Printf("Custom model config loaded from: %s\n", configFile)
+				if err := json.Unmarshal(data, &modelConfig); err != nil {
+					fmt.Printf("Failed to parse config file %s: %v\n", configFile, err)
+				} else {
+					fmt.Printf("Custom model config loaded from: %s\n", configFile)
+				}
 			} else {
 				fmt.Printf("Failed to load custom config from %s\n", configFile)
 			}
@@ -473,12 +477,14 @@ var createSessionWithDataCmd = &cobra.Command{
 			log.Info().Str("directory", dataPath).Str("cid", cid).Msg("Directory uploaded successfully")
 
 			// Calculate directory size
-			filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
+			if err := filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
 				if err == nil && !info.IsDir() {
 					datasetSize += info.Size()
 				}
 				return nil
-			})
+			}); err != nil {
+				log.Warn().Err(err).Str("path", dataPath).Msg("Failed to calculate directory size")
+			}
 		} else {
 			cid, err = filecoinService.UploadFile(ctx, dataPath)
 			if err != nil {
@@ -498,8 +504,11 @@ var createSessionWithDataCmd = &cobra.Command{
 		modelConfig := map[string]interface{}{}
 		if configFile != "" {
 			if data, err := os.ReadFile(configFile); err == nil {
-				json.Unmarshal(data, &modelConfig)
-				log.Info().Str("config_file", configFile).Msg("Custom model config loaded")
+				if err := json.Unmarshal(data, &modelConfig); err != nil {
+					log.Warn().Err(err).Str("config_file", configFile).Msg("Failed to parse config file")
+				} else {
+					log.Info().Str("config_file", configFile).Msg("Custom model config loaded")
+				}
 			} else {
 				log.Warn().Err(err).Str("config_file", configFile).Msg("Failed to load custom config, using defaults")
 			}
@@ -817,29 +826,71 @@ func init() {
 	createSessionWithDataCmd.Flags().Float64("overlap-ratio", 0, "Data overlap ratio between participants")
 
 	// Mark required flags
-	createSessionCmd.MarkFlagRequired("name")
-	createSessionCmd.MarkFlagRequired("model-type")
-	createSessionCmd.MarkFlagRequired("dataset-cid")
-	createSessionCmd.MarkFlagRequired("aggregation-method")
-	createSessionCmd.MarkFlagRequired("learning-rate")
-	createSessionCmd.MarkFlagRequired("batch-size")
-	createSessionCmd.MarkFlagRequired("local-epochs")
-	createSessionCmd.MarkFlagRequired("config-file")
-	createSessionCmd.MarkFlagRequired("min-samples")
+	if err := createSessionCmd.MarkFlagRequired("name"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark name flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("model-type"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark model-type flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("dataset-cid"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark dataset-cid flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("aggregation-method"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark aggregation-method flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("learning-rate"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark learning-rate flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("batch-size"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark batch-size flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("local-epochs"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark local-epochs flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("config-file"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark config-file flag as required")
+	}
+	if err := createSessionCmd.MarkFlagRequired("min-samples"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark min-samples flag as required")
+	}
 
-	submitUpdateCmd.MarkFlagRequired("session-id")
-	submitUpdateCmd.MarkFlagRequired("round-id")
-	submitUpdateCmd.MarkFlagRequired("runner-id")
+	if err := submitUpdateCmd.MarkFlagRequired("session-id"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark session-id flag as required")
+	}
+	if err := submitUpdateCmd.MarkFlagRequired("round-id"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark round-id flag as required")
+	}
+	if err := submitUpdateCmd.MarkFlagRequired("runner-id"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark runner-id flag as required")
+	}
 
-	createSessionWithDataCmd.MarkFlagRequired("name")
-	createSessionWithDataCmd.MarkFlagRequired("model-type")
-	createSessionWithDataCmd.MarkFlagRequired("total-rounds")
-	createSessionWithDataCmd.MarkFlagRequired("aggregation-method")
-	createSessionWithDataCmd.MarkFlagRequired("learning-rate")
-	createSessionWithDataCmd.MarkFlagRequired("batch-size")
-	createSessionWithDataCmd.MarkFlagRequired("local-epochs")
-	createSessionWithDataCmd.MarkFlagRequired("config-file")
-	createSessionWithDataCmd.MarkFlagRequired("min-samples")
+	if err := createSessionWithDataCmd.MarkFlagRequired("name"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark name flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("model-type"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark model-type flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("total-rounds"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark total-rounds flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("aggregation-method"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark aggregation-method flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("learning-rate"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark learning-rate flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("batch-size"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark batch-size flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("local-epochs"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark local-epochs flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("config-file"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark config-file flag as required")
+	}
+	if err := createSessionWithDataCmd.MarkFlagRequired("min-samples"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark min-samples flag as required")
+	}
 
 	// Add subcommands
 	flCmd.AddCommand(createSessionCmd)

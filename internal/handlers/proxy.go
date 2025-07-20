@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -48,7 +49,11 @@ func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, 
 	if err != nil {
 		return fmt.Errorf("error forwarding request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
 
 	types.CopyHeaders(w.Header(), resp.Header)
 

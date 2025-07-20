@@ -45,7 +45,11 @@ func (f *BlockchainService) UploadFile(ctx context.Context, filePath string) (st
 	if err != nil {
 		return "", fmt.Errorf("failed to open file %s: %w", filePath, err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Error closing file: %v", closeErr)
+		}
+	}()
 
 	filename := filepath.Base(filePath)
 	uniqueFilename := fmt.Sprintf("%s-%s%s",
@@ -143,7 +147,11 @@ func (f *BlockchainService) DownloadFile(ctx context.Context, cid string, output
 			Msg("Failed to download file from IPFS")
 		return fmt.Errorf("failed to download file from IPFS: %w", err)
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("Error closing reader")
+		}
+	}()
 
 	// Create output directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
@@ -154,7 +162,11 @@ func (f *BlockchainService) DownloadFile(ctx context.Context, cid string, output
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("Error closing file")
+		}
+	}()
 
 	_, err = io.Copy(file, reader)
 	if err != nil {

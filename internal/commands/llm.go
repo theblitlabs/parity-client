@@ -7,6 +7,7 @@ import (
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	walletsdk "github.com/theblitlabs/go-wallet-sdk"
 	"github.com/theblitlabs/gologger"
@@ -290,8 +291,12 @@ func init() {
 	submitCmd.Flags().String("config-path", "", "Path to config file")
 
 	// Mark required flags
-	submitCmd.MarkFlagRequired("model")
-	submitCmd.MarkFlagRequired("prompt")
+	if err := submitCmd.MarkFlagRequired("model"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark model flag as required")
+	}
+	if err := submitCmd.MarkFlagRequired("prompt"); err != nil {
+		log.Error().Err(err).Msg("Failed to mark prompt flag as required")
+	}
 
 	// List command flags
 	listCmd.Flags().IntP("limit", "l", 10, "Number of prompts to list")
