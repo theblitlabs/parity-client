@@ -15,9 +15,7 @@ import (
 	"github.com/theblitlabs/parity-client/internal/version"
 )
 
-var (
-	startTime = time.Now()
-)
+var startTime = time.Now()
 
 type HealthHandler struct {
 	config *config.Config
