@@ -759,7 +759,7 @@ func saveModelToFile(model map[string]interface{}, outputFile, format string) er
 		return fmt.Errorf("failed to marshal model data: %w", err)
 	}
 
-	if err := os.WriteFile(outputFile, data, 0644); err != nil {
+	if err := os.WriteFile(outputFile, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write to file: %w", err)
 	}
 

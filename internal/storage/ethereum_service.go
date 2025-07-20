@@ -154,7 +154,7 @@ func (f *BlockchainService) DownloadFile(ctx context.Context, cid string, output
 	}()
 
 	// Create output directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
