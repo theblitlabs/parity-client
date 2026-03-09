@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/theblitlabs/gologger"
+	"github.com/theblitlabs/parity-client/internal/config"
+	"github.com/theblitlabs/parity-client/internal/utils"
 )
 
 var healthCmd = &cobra.Command{
@@ -25,18 +28,19 @@ var (
 
 func init() {
 	healthCmd.Flags().BoolVar(&healthDetailed, "detailed", false, "Get detailed health information")
-	healthCmd.Flags().StringVar(&healthEndpoint, "endpoint", "http://localhost:3000", "Health check endpoint URL")
+	healthCmd.Flags().StringVar(&healthEndpoint, "endpoint", "", "Health check endpoint URL (defaults to the configured local client address)")
 	healthCmd.Flags().DurationVar(&healthTimeout, "timeout", 10*time.Second, "Timeout for health check request")
 }
 
 func runHealthCheck(cmd *cobra.Command, args []string) {
 	logger := gologger.Get().With().Str("component", "health-cmd").Logger()
+	endpoint := resolveHealthEndpoint(cmd)
 
 	var url string
 	if healthDetailed {
-		url = fmt.Sprintf("%s/health/detailed", healthEndpoint)
+		url = fmt.Sprintf("%s/health/detailed", endpoint)
 	} else {
-		url = fmt.Sprintf("%s/health", healthEndpoint)
+		url = fmt.Sprintf("%s/health", endpoint)
 	}
 
 	logger.Info().Str("url", url).Msg("Checking health status")
@@ -75,6 +79,7 @@ func runHealthCheck(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("✅ Health check successful\n")
+	fmt.Printf("Endpoint: %s\n", endpoint)
 	fmt.Printf("Status: %s\n", result["status"])
 	fmt.Printf("Timestamp: %s\n", result["timestamp"])
 	fmt.Printf("Version: %s\n", result["version"])
@@ -83,4 +88,42 @@ func runHealthCheck(cmd *cobra.Command, args []string) {
 		fmt.Printf("\nDetailed Information:\n")
 		fmt.Println(string(prettyJSON))
 	}
+}
+
+func resolveHealthEndpoint(cmd *cobra.Command) string {
+	if cmd != nil && cmd.Flags().Changed("endpoint") && strings.TrimSpace(healthEndpoint) != "" {
+		return strings.TrimRight(strings.TrimSpace(healthEndpoint), "/")
+	}
+
+	configPath := ""
+	if cmd != nil {
+		if flagValue, err := cmd.Flags().GetString("config-path"); err == nil {
+			configPath = flagValue
+		}
+	}
+	if configPath == "" {
+		configPath = utils.GetDefaultConfigPath()
+	}
+
+	cfg, err := config.NewConfigManager(configPath).GetConfig()
+	if err != nil || cfg == nil {
+		return "http://127.0.0.1:8090"
+	}
+
+	return strings.TrimRight(localHealthBaseURL(cfg), "/")
+}
+
+func localHealthBaseURL(cfg *config.Config) string {
+	host := cfg.Server.Host
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "127.0.0.1"
+	}
+
+	port := cfg.Server.Port
+	if port == 0 {
+		port = 8090
+	}
+
+	return fmt.Sprintf("http://%s:%d", host, port)
 }

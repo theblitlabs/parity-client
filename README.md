@@ -105,10 +105,10 @@ cp .env.sample .env
 2. Edit `.env` with your settings:
 
 ```bash
-# Server Configuration
-SERVER_HOST="0.0.0.0"
-SERVER_PORT=3000
-SERVER_ENDPOINT="/api"
+# Local client proxy configuration
+SERVER_HOST="127.0.0.1"
+SERVER_PORT=8090
+SERVER_ENDPOINT="/api/v1"
 
 # Blockchain Network Configuration
 BLOCKCHAIN_RPC=https://your-blockchain-node.com
@@ -351,7 +351,7 @@ parity-client llm list --limit 10
 Submit compute tasks to the network:
 
 ```bash
-curl -X POST http://localhost:3000/api/tasks \
+curl -X POST http://localhost:8090/api/v1/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "image": "alpine:latest",
@@ -361,9 +361,30 @@ curl -X POST http://localhost:3000/api/tasks \
   }'
 ```
 
+If the image only exists on your local machine and needs to be uploaded first, use the dedicated local upload route instead:
+
+```bash
+curl -X POST http://localhost:8090/api/v1/tasks/local \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "my-local-image:latest",
+    "command": ["echo", "Hello from a local image"],
+    "title": "Local Task",
+    "description": "This image is uploaded by the client"
+  }'
+```
+
 ### Health Monitoring
 
 The parity client provides comprehensive health monitoring endpoints for operational visibility:
+
+#### Local Proxy Guide
+
+```bash
+curl http://localhost:8090/
+```
+
+The root endpoint returns the local proxy routes, example task submissions, and the upstream server target so you can confirm whether you should use `/api/v1/tasks` or `/api/v1/tasks/local`.
 
 #### Basic Health Check
 
@@ -372,7 +393,7 @@ The parity client provides comprehensive health monitoring endpoints for operati
 parity-client health
 
 # HTTP health check
-curl http://localhost:3000/health
+curl http://localhost:8090/health
 ```
 
 #### Detailed Health Information
@@ -382,17 +403,17 @@ curl http://localhost:3000/health
 parity-client health --detailed
 
 # HTTP detailed health check
-curl http://localhost:3000/health/detailed
+curl http://localhost:8090/health/detailed
 ```
 
 #### Kubernetes-style Probes
 
 ```bash
 # Readiness probe (for Kubernetes deployments)
-curl http://localhost:3000/health/ready
+curl http://localhost:8090/health/ready
 
 # Liveness probe (for Kubernetes deployments)
-curl http://localhost:3000/health/live
+curl http://localhost:8090/health/live
 ```
 
 #### Health Check Options
@@ -451,7 +472,7 @@ Detailed health check response:
   },
   "config": {
     "server_host": "0.0.0.0",
-    "server_port": 3000,
+    "server_port": 8090,
     "blockchain_rpc": "https://your-blockchain-node.com",
     "ipfs_endpoint": "http://localhost:5001",
     "runner_url": "http://localhost:8080"
@@ -541,36 +562,37 @@ parity-client fl create-session \
 
 | Method | Endpoint                | Description                        |
 | ------ | ----------------------- | ---------------------------------- |
-| GET    | `/api/llm/models`       | List all available LLM models      |
-| POST   | `/api/llm/prompts`      | Submit a prompt for LLM processing |
-| GET    | `/api/llm/prompts/{id}` | Get prompt status and response     |
-| GET    | `/api/llm/prompts`      | List recent prompts                |
+| GET    | `/api/v1/llm/models`       | List all available LLM models      |
+| POST   | `/api/v1/llm/prompts`      | Submit a prompt for LLM processing |
+| GET    | `/api/v1/llm/prompts/{id}` | Get prompt status and response     |
+| GET    | `/api/v1/llm/prompts`      | List recent prompts                |
 
 ### Task Endpoints
 
 | Method | Endpoint               | Description      |
 | ------ | ---------------------- | ---------------- |
-| POST   | /api/tasks             | Create task      |
-| GET    | /api/tasks             | List all tasks   |
-| GET    | /api/tasks/{id}        | Get task details |
-| GET    | /api/tasks/{id}/status | Get task status  |
-| GET    | /api/tasks/{id}/logs   | Get task logs    |
+| POST   | `/api/v1/tasks`             | Create a registry-backed task      |
+| POST   | `/api/v1/tasks/local`       | Upload a local Docker image and create a task |
+| GET    | `/api/v1/tasks`             | List all tasks   |
+| GET    | `/api/v1/tasks/{id}`        | Get task details |
+| GET    | `/api/v1/tasks/{id}/status` | Get task status  |
+| GET    | `/api/v1/tasks/{id}/logs`   | Get task logs    |
 
 ### Storage Endpoints
 
 | Method | Endpoint                    | Description                  |
 | ------ | --------------------------- | ---------------------------- |
-| POST   | /api/storage/upload         | Upload file to IPFS |
-| GET    | /api/storage/download/{cid} | Download file by CID         |
-| GET    | /api/storage/info/{cid}     | Get file information         |
-| POST   | /api/storage/pin/{cid}      | Pin file to IPFS             |
+| POST   | `/api/v1/storage/upload`         | Upload file to IPFS |
+| GET    | `/api/v1/storage/download/{cid}` | Download file by CID         |
+| GET    | `/api/v1/storage/info/{cid}`     | Get file information         |
+| POST   | `/api/v1/storage/pin/{cid}`      | Pin file to IPFS             |
 
 ### Runner Endpoints
 
 | Method | Endpoint               | Description     |
 | ------ | ---------------------- | --------------- |
-| POST   | /api/runners           | Register runner |
-| POST   | /api/runners/heartbeat | Send heartbeat  |
+| POST   | `/api/v1/runners`           | Register runner |
+| POST   | `/api/v1/runners/heartbeat` | Send heartbeat  |
 
 ### Health & Status Endpoints
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/theblitlabs/gologger"
@@ -23,19 +23,24 @@ type proxyHandler struct {
 // newProxyHandler creates a new proxy handler
 func newProxyHandler(serverURL, deviceID, creatorAddr string) *proxyHandler {
 	return &proxyHandler{
-		serverURL:   strings.TrimSuffix(serverURL, "/"),
+		serverURL:   normalizeServerBaseURL(serverURL),
 		deviceID:    deviceID,
 		creatorAddr: creatorAddr,
-		client:      &http.Client{},
-		logger:      gologger.Get().With().Str("component", "proxy").Logger(),
+		client: &http.Client{
+			Timeout: 60 * time.Second,
+		},
+		logger: gologger.Get().With().Str("component", "proxy").Logger(),
 	}
 }
 
 // forwardRequest forwards an HTTP request to the target server
 func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, path string) error {
 	targetURL := fmt.Sprintf("%s/api/%s", p.serverURL, path)
+	if req.URL.RawQuery != "" {
+		targetURL = targetURL + "?" + req.URL.RawQuery
+	}
 
-	proxyReq, err := http.NewRequest(req.Method, targetURL, req.Body)
+	proxyReq, err := http.NewRequestWithContext(req.Context(), req.Method, targetURL, req.Body)
 	if err != nil {
 		return fmt.Errorf("error creating proxy request: %v", err)
 	}
@@ -56,6 +61,7 @@ func (p *proxyHandler) forwardRequest(w http.ResponseWriter, req *http.Request, 
 	}()
 
 	types.CopyHeaders(w.Header(), resp.Header)
+	w.Header().Set("X-Parity-Proxy-Mode", "proxy-pass")
 
 	w.WriteHeader(resp.StatusCode)
 

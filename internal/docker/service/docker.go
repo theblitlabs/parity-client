@@ -66,13 +66,13 @@ func (s *DockerService) SaveImage(imageName string) (string, error) {
 	return tarFileName, nil
 }
 
-func (s *DockerService) UploadImage(tarFile string, taskData map[string]interface{}, serverURL string) error {
+func (s *DockerService) UploadImage(tarFile string, taskData map[string]interface{}, serverURL string) (int, []byte, error) {
 	// Compute image hash before uploading
 	if imageName, ok := taskData["image"].(string); ok {
 		imageHash, err := utils.ComputeImageHash(imageName)
 		if err != nil {
 			s.log.Error().Err(err).Str("image", imageName).Msg("Failed to compute image hash")
-			return fmt.Errorf("failed to compute image hash: %w", err)
+			return 0, nil, fmt.Errorf("failed to compute image hash: %w", err)
 		}
 		taskData["image_hash"] = imageHash
 		s.log.Info().Str("image", imageName).Str("hash", imageHash).Msg("Computed image hash")
@@ -96,7 +96,7 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 
 	imageData, err := os.ReadFile(tarFile)
 	if err != nil {
-		return fmt.Errorf("failed to read Docker image tar: %v", err)
+		return 0, nil, fmt.Errorf("failed to read Docker image tar: %v", err)
 	}
 
 	body := &bytes.Buffer{}
@@ -104,16 +104,16 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 
 	jsonPart, err := writer.CreateFormField("task")
 	if err != nil {
-		return fmt.Errorf("failed to create form field: %v", err)
+		return 0, nil, fmt.Errorf("failed to create form field: %v", err)
 	}
 
 	if err := json.NewEncoder(jsonPart).Encode(taskData); err != nil {
-		return fmt.Errorf("failed to encode task request: %v", err)
+		return 0, nil, fmt.Errorf("failed to encode task request: %v", err)
 	}
 
 	imagePart, err := writer.CreateFormFile("image", filepath.Base(tarFile))
 	if err != nil {
-		return fmt.Errorf("failed to create form file: %v", err)
+		return 0, nil, fmt.Errorf("failed to create form file: %v", err)
 	}
 
 	s.log.Debug().
@@ -121,11 +121,11 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 		Msg("Writing image data to request")
 
 	if _, err := imagePart.Write(imageData); err != nil {
-		return fmt.Errorf("failed to write image data: %v", err)
+		return 0, nil, fmt.Errorf("failed to write image data: %v", err)
 	}
 
 	if err := writer.Close(); err != nil {
-		return fmt.Errorf("failed to close writer: %v", err)
+		return 0, nil, fmt.Errorf("failed to close writer: %v", err)
 	}
 
 	s.log.Debug().
@@ -135,7 +135,7 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 
 	req, err := http.NewRequest("POST", serverURL, body)
 	if err != nil {
-		return fmt.Errorf("failed to create server request: %v", err)
+		return 0, nil, fmt.Errorf("failed to create server request: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
@@ -151,7 +151,7 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send request to server: %v", err)
+		return 0, nil, fmt.Errorf("failed to send request to server: %v", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -159,15 +159,16 @@ func (s *DockerService) UploadImage(tarFile string, taskData map[string]interfac
 		}
 	}()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read error response from server: %v", err)
-		}
-		return fmt.Errorf("server returned error: status=%d, response=%s", resp.StatusCode, string(respBody))
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to read response from server: %v", err)
 	}
 
-	return nil
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return 0, nil, fmt.Errorf("server returned error: status=%d, response=%s", resp.StatusCode, string(respBody))
+	}
+
+	return resp.StatusCode, respBody, nil
 }
 
 func (s *DockerService) saveImageToTar(imageName, tarFileName string) error {
