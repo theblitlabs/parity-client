@@ -13,8 +13,10 @@ type ResponseWriter struct {
 
 // HTTPError represents an HTTP error response
 type HTTPError struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
+	Status    int      `json:"status"`
+	Message   string   `json:"message"`
+	Hint      string   `json:"hint,omitempty"`
+	NextSteps []string `json:"next_steps,omitempty"`
 }
 
 func WriteJSON(w http.ResponseWriter, statusCode int, data interface{}) error {
@@ -27,6 +29,15 @@ func WriteError(w http.ResponseWriter, statusCode int, message string) error {
 	return WriteJSON(w, statusCode, HTTPError{
 		Status:  statusCode,
 		Message: message,
+	})
+}
+
+func WriteDetailedError(w http.ResponseWriter, statusCode int, message, hint string, nextSteps []string) error {
+	return WriteJSON(w, statusCode, HTTPError{
+		Status:    statusCode,
+		Message:   message,
+		Hint:      hint,
+		NextSteps: nextSteps,
 	})
 }
 

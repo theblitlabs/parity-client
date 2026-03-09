@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -18,6 +19,7 @@ type RequestRouter struct {
 	taskHandler   *TaskHandler
 	proxy         *proxyHandler
 	healthHandler *HealthHandler
+	infoHandler   *InfoHandler
 	logger        zerolog.Logger
 }
 
@@ -29,6 +31,7 @@ func NewRequestRouter(cfg *config.Config, deviceID, creatorAddr string) *Request
 		taskHandler:   NewTaskHandler(cfg, deviceID, creatorAddr),
 		proxy:         newProxyHandler(cfg.Runner.ServerURL, deviceID, creatorAddr),
 		healthHandler: NewHealthHandler(cfg),
+		infoHandler:   NewInfoHandler(cfg, deviceID, creatorAddr),
 		logger:        gologger.Get().With().Str("component", "router").Logger(),
 	}
 }
@@ -48,7 +51,11 @@ func (r *RequestRouter) HandleRequest(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if req.Method == "POST" && strings.Contains(req.Header.Get("Content-Type"), "application/json") {
+	if r.handleInfoEndpoints(w, req, path) {
+		return
+	}
+
+	if r.shouldHandleLocalDockerUpload(req, path) {
 		r.handleJSONRequest(w, req, path)
 		return
 	}
@@ -60,11 +67,40 @@ func (r *RequestRouter) HandleRequest(w http.ResponseWriter, req *http.Request) 
 	}
 }
 
+func (r *RequestRouter) shouldHandleLocalDockerUpload(req *http.Request, path string) bool {
+	if req.Method != http.MethodPost {
+		return false
+	}
+
+	if !strings.Contains(req.Header.Get("Content-Type"), "application/json") {
+		return false
+	}
+
+	normalizedPath := strings.Trim(path, "/")
+	switch normalizedPath {
+	case "tasks/local", "v1/tasks/local":
+		return true
+	case "tasks", "v1/tasks":
+		return strings.EqualFold(req.Header.Get("X-Parity-Upload-Image"), "true")
+	default:
+		return false
+	}
+}
+
 func (r *RequestRouter) handleJSONRequest(w http.ResponseWriter, req *http.Request, path string) {
 	var taskRequest task.Request
 	if err := types.ReadJSONBody(req.Body, &taskRequest); err != nil {
 		r.logger.Error().Err(err).Msg("Failed to decode request body")
-		if writeErr := types.WriteError(w, http.StatusBadRequest, "Invalid request body"); writeErr != nil {
+		if writeErr := types.WriteDetailedError(
+			w,
+			http.StatusBadRequest,
+			"invalid JSON request body",
+			"Send a JSON object with title, image, and command fields when using local image upload routes.",
+			[]string{
+				"Set Content-Type: application/json.",
+				"Use /api/v1/tasks/local for local Docker image upload or /api/v1/tasks for normal proxying.",
+			},
+		); writeErr != nil {
 			r.logger.Error().Err(writeErr).Msg("Failed to write error response")
 		}
 		return
@@ -72,11 +108,40 @@ func (r *RequestRouter) handleJSONRequest(w http.ResponseWriter, req *http.Reque
 
 	if err := r.taskHandler.ValidateAndProcessTask(w, &taskRequest); err != nil {
 		r.logger.Error().Err(err).Msg("Failed to process task")
+		var taskErr *TaskProcessingError
+		if errors.As(err, &taskErr) {
+			if writeErr := types.WriteDetailedError(w, taskErr.StatusCode, taskErr.Message, taskErr.Hint, taskErr.NextSteps); writeErr != nil {
+				r.logger.Error().Err(writeErr).Msg("Failed to write error response")
+			}
+			return
+		}
+
 		if writeErr := types.WriteError(w, http.StatusBadRequest, err.Error()); writeErr != nil {
 			r.logger.Error().Err(writeErr).Msg("Failed to write error response")
 		}
 		return
 	}
+}
+
+func (r *RequestRouter) handleInfoEndpoints(w http.ResponseWriter, req *http.Request, path string) bool {
+	if req.Method != http.MethodGet {
+		return false
+	}
+
+	normalizedRequestPath := strings.Trim(req.URL.Path, "/")
+	switch normalizedRequestPath {
+	case "", "api", "help", "api/help":
+		r.infoHandler.HandleInfo(w, req)
+		return true
+	}
+
+	switch strings.Trim(path, "/") {
+	case "", "help":
+		r.infoHandler.HandleInfo(w, req)
+		return true
+	}
+
+	return false
 }
 
 func (r *RequestRouter) handleHealthEndpoints(w http.ResponseWriter, req *http.Request, path string) bool {

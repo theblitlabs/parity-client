@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/theblitlabs/gologger"
 	"github.com/theblitlabs/parity-client/internal/config"
@@ -31,14 +32,31 @@ func (s *Server) Start() error {
 	log := gologger.Get().With().Str("component", "proxy").Logger()
 
 	localAddr := fmt.Sprintf("%s:%d", s.config.Server.Host, s.port)
+	localBaseURL := handlers.LocalProxyBaseURL(s.config.Server.Host, s.port)
+	upstreamBaseURL := handlers.NormalizeServerBaseURL(s.config.Runner.ServerURL)
 
 	log.Info().
 		Str("address", localAddr).
+		Str("local_proxy_url", localBaseURL).
+		Str("health_url", fmt.Sprintf("%s/health", localBaseURL)).
+		Str("info_url", fmt.Sprintf("%s/", localBaseURL)).
+		Str("registry_task_url", fmt.Sprintf("%s/api/v1/tasks", localBaseURL)).
+		Str("local_upload_url", fmt.Sprintf("%s/api/v1/tasks/local", localBaseURL)).
+		Str("upstream_server_url", upstreamBaseURL).
 		Str("device_id", s.deviceID).
 		Str("creator_address", s.creatorAddr).
 		Int("port", s.port).
-		Msg("Starting chain proxy server")
+		Msg("Starting Parity client proxy")
 
-	http.HandleFunc("/", s.requestRouter.HandleRequest)
-	return http.ListenAndServe(localAddr, nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.requestRouter.HandleRequest)
+
+	server := &http.Server{
+		Addr:              localAddr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	return server.ListenAndServe()
 }
