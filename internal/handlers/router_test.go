@@ -195,3 +195,40 @@ func TestHandleRequestReturnsActionableErrorForMissingLocalImage(t *testing.T) {
 		t.Fatalf("next_steps missing from error payload: %#v", payload)
 	}
 }
+
+func TestHandleRequestServesDashboard(t *testing.T) {
+	router := NewRequestRouter(&config.Config{
+		Server: config.ServerConfig{
+			Host: "127.0.0.1",
+			Port: 8090,
+		},
+		Runner: config.RunnerConfig{
+			ServerURL: "http://127.0.0.1:8080",
+		},
+	}, "device-1", "creator-1")
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	rec := httptest.NewRecorder()
+
+	router.HandleRequest(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	if got := resp.Header.Get("X-Parity-Proxy-Mode"); got != "local-dashboard" {
+		t.Fatalf("X-Parity-Proxy-Mode = %q, want %q", got, "local-dashboard")
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("ReadAll() error = %v", err)
+	}
+
+	if !strings.Contains(string(body), "Parity Operations Dashboard") {
+		t.Fatalf("dashboard response missing title: %q", string(body))
+	}
+}

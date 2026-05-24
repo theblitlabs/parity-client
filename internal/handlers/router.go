@@ -20,6 +20,7 @@ type RequestRouter struct {
 	proxy         *proxyHandler
 	healthHandler *HealthHandler
 	infoHandler   *InfoHandler
+	dashboard     *DashboardHandler
 	logger        zerolog.Logger
 }
 
@@ -32,6 +33,7 @@ func NewRequestRouter(cfg *config.Config, deviceID, creatorAddr string) *Request
 		proxy:         newProxyHandler(cfg.Runner.ServerURL, deviceID, creatorAddr),
 		healthHandler: NewHealthHandler(cfg),
 		infoHandler:   NewInfoHandler(cfg, deviceID, creatorAddr),
+		dashboard:     NewDashboardHandler(cfg),
 		logger:        gologger.Get().With().Str("component", "router").Logger(),
 	}
 }
@@ -52,6 +54,10 @@ func (r *RequestRouter) HandleRequest(w http.ResponseWriter, req *http.Request) 
 	}
 
 	if r.handleInfoEndpoints(w, req, path) {
+		return
+	}
+
+	if r.handleDashboardEndpoints(w, req) {
 		return
 	}
 
@@ -167,5 +173,19 @@ func (r *RequestRouter) handleHealthEndpoints(w http.ResponseWriter, req *http.R
 			return true
 		}
 	}
+	return false
+}
+
+func (r *RequestRouter) handleDashboardEndpoints(w http.ResponseWriter, req *http.Request) bool {
+	if req.Method != http.MethodGet {
+		return false
+	}
+
+	switch strings.Trim(req.URL.Path, "/") {
+	case "dashboard":
+		r.dashboard.HandleDashboard(w, req)
+		return true
+	}
+
 	return false
 }

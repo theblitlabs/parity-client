@@ -64,6 +64,7 @@ func (h *InfoHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 		CreatorAddress: h.creatorAddr,
 		Routes: []ProxyRouteInfo{
 			{Method: http.MethodGet, Path: "/", Description: "Show local proxy routes, examples, and upstream target"},
+			{Method: http.MethodGet, Path: "/dashboard", Description: "Open the live operations dashboard for tasks, runners, models, and sessions"},
 			{Method: http.MethodGet, Path: "/health", Description: "Quick local health summary for the client proxy"},
 			{Method: http.MethodPost, Path: "/api/v1/tasks", Description: "Proxy a normal registry-backed task submission to the server"},
 			{Method: http.MethodPost, Path: "/api/v1/tasks/local", Description: "Package a local Docker image and upload it through the client"},
@@ -86,6 +87,7 @@ func (h *InfoHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 		},
 		ProxyBehavior: []string{
 			"All other /api/v1/* requests are forwarded upstream unchanged.",
+			"Open /dashboard for a live operator view backed by /api/v1/dashboard/overview.",
 			"Use /api/v1/tasks/local only when the image already exists on this machine and needs to be uploaded.",
 			"Use /api/v1/tasks for registry-backed tasks so runners can pull the image directly.",
 			"POST /api/v1/tasks also supports X-Parity-Upload-Image: true if you want local upload behavior without changing the path.",

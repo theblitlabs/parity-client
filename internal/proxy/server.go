@@ -38,6 +38,7 @@ func (s *Server) Start() error {
 	log.Info().
 		Str("address", localAddr).
 		Str("local_proxy_url", localBaseURL).
+		Str("dashboard_url", fmt.Sprintf("%s/dashboard", localBaseURL)).
 		Str("health_url", fmt.Sprintf("%s/health", localBaseURL)).
 		Str("info_url", fmt.Sprintf("%s/", localBaseURL)).
 		Str("registry_task_url", fmt.Sprintf("%s/api/v1/tasks", localBaseURL)).
